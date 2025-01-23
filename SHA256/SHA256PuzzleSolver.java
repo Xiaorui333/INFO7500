@@ -24,19 +24,36 @@ public class SHA256PuzzleSolver {
 
     public static void main(String[] args) {
         try {
-            byte[] x = new byte[32];  // Random 32-byte array
-            new Random().nextBytes(x);
-
             byte[] idBytes = hexStringToByteArray(idHex);
-            byte[] concatenated = ByteBuffer.allocate(x.length + idBytes.length).put(x).put(idBytes).array();  // Concatenate x and idBytes
+            Random random = new Random();
 
-            byte[] hash = sha256(concatenated);
 
-            // Convert byte array to hexadecimal string
-            StringBuilder hexString = new StringBuilder();
-            for (byte b : hash) hexString.append(String.format("%02x", b));
+            while (true) {
+                byte[] x = new byte[32];
+                new Random().nextBytes(x);
 
-            System.out.println("SHA-256 Hash of x || id: " + hexString.toString());
+                byte[] concatenated = ByteBuffer.allocate(x.length + idBytes.length).put(x).put(idBytes).array();
+                byte[] hash = sha256(concatenated);
+
+                // Check for the presence of 0x2F in the hash
+                boolean found = false;
+                for (byte b : hash) {
+                    if (b == 0x2F) {
+                        found = true;
+                        break;
+                    }
+                }
+
+                // print x in hexadecimal if found
+                if (found) {
+                    StringBuilder xHexString = new StringBuilder();
+                    for (byte b : x) xHexString.append(String.format("%02x", b));
+
+                    System.out.println("Found x: " + xHexString.toString());
+                    System.out.println("SHA-256 Hash contains 0x2F!");
+                    break;
+                }
+            }
         } catch (NoSuchAlgorithmException e) {
             e.printStackTrace();
         }
