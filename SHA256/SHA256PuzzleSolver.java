@@ -27,7 +27,6 @@ public class SHA256PuzzleSolver {
             byte[] idBytes = hexStringToByteArray(idHex);
             Random random = new Random();
 
-
             while (true) {
                 byte[] x = new byte[32];
                 new Random().nextBytes(x);
@@ -50,7 +49,6 @@ public class SHA256PuzzleSolver {
                     for (byte b : x) xHexString.append(String.format("%02x", b));
 
                     System.out.println("Found x: " + xHexString.toString());
-                    System.out.println("SHA-256 Hash contains 0x2F!");
                     break;
                 }
             }

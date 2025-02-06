@@ -1,0 +1,8 @@
+[package]
+name = "digital_signatures"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ring = "0.17.8"
+data-encoding = "2.3.2"
