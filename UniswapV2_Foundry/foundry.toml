@@ -1,0 +1,15 @@
+[profile.default]
+src = "src"
+out = "out"
+libs = ["lib"]
+optimizer = true
+optimizer_runs = 200
+viaIR = true
+solc_version = "0.8.20"
+
+[coverage]
+include = [
+  "src/core/UniswapV2Factory.sol",
+  "src/core/UniswapV2Pair.sol",
+  "src/periphery/UniswapV2Router02.sol"
+]
