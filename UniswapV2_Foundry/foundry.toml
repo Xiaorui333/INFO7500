@@ -13,3 +13,6 @@ include = [
   "src/core/UniswapV2Pair.sol",
   "src/periphery/UniswapV2Router02.sol"
 ]
+
+[rpc_endpoints]
+sepolia = "https://eth-sepolia.g.alchemy.com/v2/QJMgczQPSqgTL8p5YHMhx_OBxt70gU-w"
