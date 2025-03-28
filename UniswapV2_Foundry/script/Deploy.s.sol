@@ -17,17 +17,20 @@ contract DeployContracts is Script {
         // Deploy WETH9 contract (used for wrapping ETH)
         WETH9 weth = new WETH9();
         
+        // Deploy UniswapV2Factory first; usually, the feeToSetter is set to msg.sender
+        UniswapV2Factory factory = new UniswapV2Factory(msg.sender);
+
         // Deploy two TestERC20 tokens (for example, Token A and Token B)
         TestERC20 tokenA = new TestERC20("Token A", "TKA", 18);
         TestERC20 tokenB = new TestERC20("Token B", "TKB", 18);
 
-        // Deploy UniswapV2Factory; usually, the feeToSetter is set to msg.sender
-        UniswapV2Factory factory = new UniswapV2Factory(msg.sender);
+        // Now, create a pair using the factory.
+        // Pass the token addresses (not the contract instances).
+        address pair = factory.createPair(address(tokenA), address(tokenB));
 
         // Deploy UniswapV2Router02 with the factory and WETH addresses
         UniswapV2Router02 router = new UniswapV2Router02(address(factory), address(weth));
         
-
         vm.stopBroadcast();
 
         // Log the deployed contract addresses
@@ -35,6 +38,7 @@ contract DeployContracts is Script {
         console.log("TestERC20 Token A deployed at:", address(tokenA));
         console.log("TestERC20 Token B deployed at:", address(tokenB));
         console.log("UniswapV2Factory deployed at:", address(factory));
+        console.log("Pair Address:", pair);
         console.log("UniswapV2Router02 deployed at:", address(router));
     }
 }

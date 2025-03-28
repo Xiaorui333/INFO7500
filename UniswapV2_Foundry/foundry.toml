@@ -16,3 +16,5 @@ include = [
 
 [rpc_endpoints]
 sepolia = "https://eth-sepolia.g.alchemy.com/v2/QJMgczQPSqgTL8p5YHMhx_OBxt70gU-w"
+fork_url = "$SEPOLIA_RPC_URL"
+
