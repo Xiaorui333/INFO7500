@@ -27,12 +27,16 @@ async function ensureAllowance({
   if (requiredAmount === 0n) return;
 
   // Check current allowance
-  const allowance: bigint = await publicClient.readContract({
+  if (!publicClient) {
+    throw new Error("publicClient is not available");
+  }
+  const rawAllowance = await publicClient.readContract({
     address: tokenAddress,
     abi: erc20Abi,
     functionName: "allowance",
     args: [owner, spender],
   });
+  const allowance: bigint = rawAllowance as bigint;
 
   if (allowance < requiredAmount) {
     // Approve if not enough allowance

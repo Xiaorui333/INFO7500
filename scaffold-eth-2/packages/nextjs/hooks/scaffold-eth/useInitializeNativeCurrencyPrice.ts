@@ -17,7 +17,7 @@ export const useInitializeNativeCurrencyPrice = () => {
 
   const fetchPrice = useCallback(async () => {
     setIsNativeCurrencyFetching(true);
-    const price = await fetchPriceFromUniswap(targetNetwork);
+    const price = await fetchPriceFromUniswap();
     setNativeCurrencyPrice(price);
     setIsNativeCurrencyFetching(false);
   }, [setIsNativeCurrencyFetching, setNativeCurrencyPrice, targetNetwork]);

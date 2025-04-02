@@ -48,8 +48,9 @@ export function SwapPriceDistribution({ pairAddress }: SwapPriceDistributionProp
     eventName: "Swap",
     onLogs: (logs) => {
       logs.forEach((log) => {
-        if (log.args) {
-          const price = computeSwapPrice(log.args);
+        const decodedArgs = (log as any).args;
+        if (decodedArgs) {
+          const price = computeSwapPrice(decodedArgs);
           if (price > 0) {
             setSwapPrices((prev) => [...prev, price]);
           }

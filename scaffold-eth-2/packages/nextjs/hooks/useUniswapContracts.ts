@@ -1,19 +1,26 @@
-import { useContract } from "wagmi";
-import factoryAbi from "../abis/UniswapV2Factory.json";
-import pairAbi from "../abis/UniswapV2Pair.json";
+import { useContractRead } from "wagmi";
+import factoryArtifact from "../abis/UniswapV2Factory.json";
+import pairArtifact from "../abis/UniswapV2Pair.json";
 
-export function useUniswapFactory() {
-  const factory = useContract({
-    address: process.env.NEXT_PUBLIC_UNISWAPV2_FACTORY_ADDRESS as `0x${string}`,
-    abi: factoryAbi,
-  });
-  return factory;
+// Helper function to extract the ABI from an artifact.
+function getAbi(artifact: any) {
+  return artifact.abi ?? artifact;
 }
 
-export function useUniswapPair() {
-  const pair = useContract({
-    address: process.env.NEXT_PUBLIC_UNISWAPV2_PAIR_ADDRESS as `0x${string}`,
-    abi: pairAbi,
+export function useUniswapFactoryRead(functionName: string, args: any[] = []) {
+  return useContractRead({
+    address: process.env.NEXT_PUBLIC_UNISWAPV2_FACTORY_ADDRESS as `0x${string}`,
+    abi: getAbi(factoryArtifact),
+    functionName,
+    args,
   });
-  return pair;
+}
+
+export function useUniswapPairRead(functionName: string, args: any[] = []) {
+  return useContractRead({
+    address: process.env.NEXT_PUBLIC_UNISWAPV2_PAIR_ADDRESS as `0x${string}`,
+    abi: getAbi(pairArtifact),
+    functionName,
+    args,
+  });
 }

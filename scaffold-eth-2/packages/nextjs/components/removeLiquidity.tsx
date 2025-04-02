@@ -1,72 +1,37 @@
+
 "use client";
 import React, { useState } from "react";
 import { useAccount, useWriteContract } from "wagmi";
-import { parseUnits } from "viem";
 import routerAbi from "@/abis/UniswapV2Router02.json";
 
-/**
- * RemoveLiquidity component:
- * - Reads your router address from ENV.
- * - Calls removeLiquidity on the UniswapV2Router02 contract.
- * - No simulation, just sends the transaction.
- */
-export function RemoveLiquidity() {
-  // Pull from .env: NEXT_PUBLIC_UNISWAPV2_ROUTER02_ADDRESS
-  const routerAddress = process.env.NEXT_PUBLIC_UNISWAPV2_ROUTER02_ADDRESS as `0x${string}` | undefined;
+interface RemoveLiquidityProps {
+  pairAddress: `0x${string}`;
+  tokenA: `0x${string}`;
+  tokenB: `0x${string}`;
+}
 
-  // Example tokens you previously added liquidity for:
-  const tokenA: `0x${string}` = "0xAFDef8811Cf4dd77ABCD39f0d8A4da98dfd631AD";
-  const tokenB: `0x${string}` = "0xEDb86AF52cffE19B16e2C55EDc74dae46Abd0Afb";
-
-  // LP token decimals (often 18)
-  const decimalsLP = 18;
-
-  // State: how many LP tokens to burn
-  const [lpTokens, setLpTokens] = useState("");
-
-  // Get the user's address from Wagmi
+export function RemoveLiquidity({ pairAddress, tokenA, tokenB }: RemoveLiquidityProps) {
   const { address: userAddress } = useAccount();
 
-  // Convert typed LP token amount to BigInt
-  const lpTokensInWei = lpTokens ? parseUnits(lpTokens, decimalsLP) : 0n;
-
-  // 20-minute deadline from now
+  // Example state for LP tokens to remove
+  const [lpTokens, setLpTokens] = useState("");
+  const lpTokensInWei = lpTokens ? BigInt(Number(lpTokens) * 1e18) : 0n;
   const deadline = BigInt(Math.floor(Date.now() / 1000) + 60 * 20);
 
-  // The direct write call (no simulation)
-  const {
-    writeContractAsync: removeLiquidityAsync,
-    isLoading,
-    error: writeError,
-  } = useWriteContract();
+  // Using writeContractAsync for the removeLiquidity call.
+  const { writeContractAsync, error } = useWriteContract();
 
   async function handleRemove() {
-    // If routerAddress is missing, or user isn't connected, bail
-    if (!routerAddress) {
-      console.warn("Router address is undefined. Check your .env file and logs.");
-      return;
-    }
     if (!userAddress) {
-      console.warn("No connected wallet address found.");
+      console.warn("No connected wallet found.");
       return;
     }
-
     try {
-      // Send the transaction on-chain
-      const tx = await removeLiquidityAsync({
-        address: routerAddress,  // Must be the router, not the pair
-        abi: routerAbi.abi,          // Must include "removeLiquidity" in the ABI
+      const tx = await writeContractAsync({
+        address: pairAddress, // assuming the router is at the pair address; adjust if needed
+        abi: routerAbi.abi,   // assuming routerAbi has a top-level "abi" field; adjust if needed
         functionName: "removeLiquidity",
-        args: [
-          tokenA,
-          tokenB,
-          lpTokensInWei, // liquidity to remove
-          0n,            // amountAMin
-          0n,            // amountBMin
-          userAddress,   // 'to' address
-          deadline,
-        ],
-        // chainId: 11155111, // If you're on Sepolia, uncomment
+        args: [tokenA, tokenB, lpTokensInWei, 0n, 0n, userAddress, deadline],
       });
       console.log("Remove Liquidity TX submitted:", tx);
     } catch (err) {
@@ -74,28 +39,9 @@ export function RemoveLiquidity() {
     }
   }
 
-  // Log everything for debugging
-  console.log("RemoveLiquidity Debug =>", {
-    routerAddress,
-    tokenA,
-    tokenB,
-    decimalsLP,
-    lpTokens,
-    lpTokensInWei: lpTokensInWei.toString(),
-    userAddress,
-    deadline: deadline.toString(),
-    isLoading,
-    writeError,
-  });
-
   return (
     <div style={{ border: "1px solid #ddd", padding: "1rem", borderRadius: "8px", marginBottom: "1rem" }}>
       <h3>Remove Liquidity</h3>
-
-      {writeError && (
-        <p style={{ color: "red" }}>Remove Liquidity Error: {writeError.message}</p>
-      )}
-
       <div style={{ marginBottom: "0.5rem" }}>
         <label>LP Tokens to Burn:</label>
         <input
@@ -107,13 +53,9 @@ export function RemoveLiquidity() {
         />
       </div>
 
-      <button
-        onClick={handleRemove}
-        disabled={isLoading || !routerAddress || !userAddress}
-        style={{ padding: "0.5rem 1rem" }}
-      >
-        {isLoading ? "Redeeming..." : "Remove Liquidity"}
-      </button>
-    </div>
-  );
-}
+      <button onClick={handleRemove}>Remove Liquidity</button>
+      {error && <p style={{ color: "red" }}>Error: {error.message}</p>}
+      </div>
+       );
+    }
+

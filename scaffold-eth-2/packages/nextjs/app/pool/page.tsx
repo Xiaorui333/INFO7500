@@ -38,6 +38,8 @@ export default function PoolPage() {
         pairs={knownPairs.map(kp => ({
           label: kp.label,
           pairAddress: kp.pairAddress,
+          tokenA: kp.tokenA as `0x${string}`,
+          tokenB: kp.tokenB as `0x${string}`,
         }))}
         onSelectPool={handleSelectPool}
       />
@@ -45,18 +47,18 @@ export default function PoolPage() {
       {selectedPair && (
         <>
           <AddLiquidity
-            pairAddress={selectedPair as `0x${string}`}
-            tokenA={tokenA}
-            tokenB={tokenB}
+            routerAddress={selectedPair as `0x${string}`}
+            tokenA={tokenA as `0x${string}`}
+            tokenB={tokenB as `0x${string}`}
           />
 
           <RemoveLiquidity
             pairAddress={selectedPair as `0x${string}`}
-            tokenA={tokenA}
-            tokenB={tokenB}
+            tokenA={tokenA as `0x${string}`}
+            tokenB={tokenB as `0x${string}`}
           />
 
-          <Swap tokenIn={tokenA} tokenOut={tokenB} />
+          <Swap tokenIn={tokenA as `0x${string}`} tokenOut={tokenB as `0x${string}`} />
 
           <PoolAnalytics pairAddress={selectedPair as `0x${string}`} />
 

@@ -14,6 +14,7 @@ interface SwapProps {
 export function Swap({ tokenIn, tokenOut, decimalsIn = 18, decimalsOut = 18 }: SwapProps) {
   const [inputAmount, setInputAmount] = useState("");
   const { address: userAddress } = useAccount();
+  const [loading, setLoading] = useState(false);
 
   // Convert user input to BigInt using the tokenIn decimals
   const amountInWei = inputAmount ? parseUnits(inputAmount, decimalsIn) : 0n;
@@ -21,12 +22,7 @@ export function Swap({ tokenIn, tokenOut, decimalsIn = 18, decimalsOut = 18 }: S
   // Example: 20 minutes from now
   const deadline = BigInt(Math.floor(Date.now() / 1000) + 60 * 20);
 
-  // The direct write hook (no simulation)
-  const {
-    writeContractAsync: swapTokensAsync,
-    isLoading,
-    error: writeError,
-  } = useWriteContract();
+  const { writeContractAsync: swapTokensAsync, error: writeError } = useWriteContract();
 
   async function handleSwap() {
     const routerAddress = process.env.NEXT_PUBLIC_UNISWAPV2_ROUTER02_ADDRESS as `0x${string}`;
@@ -44,6 +40,7 @@ export function Swap({ tokenIn, tokenOut, decimalsIn = 18, decimalsOut = 18 }: S
     }
 
     try {
+      setLoading(true);
       // Send the transaction on-chain
       const tx = await swapTokensAsync({
         address: routerAddress,
@@ -61,6 +58,8 @@ export function Swap({ tokenIn, tokenOut, decimalsIn = 18, decimalsOut = 18 }: S
       console.log("Swap transaction submitted!", tx);
     } catch (err) {
       console.error("Swap failed:", err);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -74,7 +73,6 @@ export function Swap({ tokenIn, tokenOut, decimalsIn = 18, decimalsOut = 18 }: S
     inputAmount,
     amountInWei: amountInWei.toString(),
     deadline: deadline.toString(),
-    isLoading,
     writeError,
   });
 
@@ -99,10 +97,10 @@ export function Swap({ tokenIn, tokenOut, decimalsIn = 18, decimalsOut = 18 }: S
 
       <button
         onClick={handleSwap}
-        disabled={isLoading || !userAddress}
+        disabled={loading || !userAddress}
         style={{ padding: "0.5rem 1rem" }}
       >
-        {isLoading ? "Swapping..." : "Swap"}
+        {loading ? "Swapping..." : "Swap"}
       </button>
     </div>
   );

@@ -13,7 +13,7 @@ interface ApproveTokenProps {
 }
 
 export function ApproveToken({ tokenAddress, label, initialAmount = "1000" }: ApproveTokenProps) {
-  const { address: userAddress } = useAccount();
+  // const { address: userAddress } = useAccount();
   const [amount, setAmount] = useState(initialAmount);
 
   const amountInWei = parseUnits(amount, 18);
