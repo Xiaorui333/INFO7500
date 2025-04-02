@@ -1,76 +1,53 @@
-// wagmiConfig.ts
+import { wagmiConnectors } from "./wagmiConnectors";
+import { Chain, createClient, fallback, http } from "viem";
+import { hardhat, mainnet } from "viem/chains";
 import { createConfig } from "wagmi";
-import { sepolia } from "wagmi/chains";
-import { injected, walletConnect } from "wagmi/connectors";
+import scaffoldConfig, { DEFAULT_ALCHEMY_API_KEY, ScaffoldConfig } from "~~/scaffold.config";
+import { getAlchemyHttpUrl } from "~~/utils/scaffold-eth";
 
-/**
- * viem imports for testing chain ID
- * - We rename viem's `http` to `viemHttp` to avoid collision
- */
-import { createPublicClient } from "viem";
-import { http as viemHttp } from "viem";
+const { targetNetworks } = scaffoldConfig;
 
-/* Environment variables */
-const SEPOLIA_RPC_URL = process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL || "";
-const WC_PROJECT_ID = process.env.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID || "";
+// We always want to have mainnet enabled (ENS resolution, ETH price, etc). But only once.
+export const enabledChains = targetNetworks.find((network: Chain) => network.id === 1)
+  ? targetNetworks
+  : ([...targetNetworks] as const);
 
-console.log("SEPOLIA_RPC_URL is:", SEPOLIA_RPC_URL);
+// Print current environment variables
+console.log(`Alchemy API Key: ${scaffoldConfig.alchemyApiKey}`);
+console.log(`Target Networks: ${JSON.stringify(targetNetworks.map(n => n.name))}`);
+console.log(`RPC Overrides: ${JSON.stringify(scaffoldConfig.rpcOverrides)}`);
 
-/* 
-  1) Create a quick "publicClient" from viem to test chain ID
-     - purely for debugging your node's chain. 
-     - If chain = sepolia, it should return 11155111.
-*/
-const publicClient = createPublicClient({
-  chain: sepolia,
-  transport: viemHttp(SEPOLIA_RPC_URL),
-});
-
-/** 
- * 2) Just for debugging:
- *    logs the chain ID from your Alchemy / custom RPC endpoint 
- */
-async function testChainId() {
-  try {
-    const chainId = await publicClient.getChainId();
-    console.log("Chain ID from the node is:", chainId);
-  } catch (err) {
-    console.error("Error fetching chainId:", err);
-  }
-}
-testChainId();
-
-/** 
- * 3) Create the wagmi config for your app, 
- *    referencing the same URL with "transports"
- */
 export const wagmiConfig = createConfig({
-  chains: [sepolia],
-  connectors: [
-    injected({ chains: [sepolia] }),
-    walletConnect({
-      projectId: WC_PROJECT_ID,
-      chains: [sepolia],
-      showQrModal: true,
-      metadata: {
-        name: "Your App Name",
-        description: "Your App Description",
-        url: "https://yourapp.com",
-      },
-    }),
-  ],
-  /* 
-    "transports" is a wagmi v2 feature:
-    We pass an object keyed by chain ID => "http({ url: ... })" 
-    If your environment variable is the entire Alchemy URL, 
-    then wagmi’s calls will go to that endpoint for reads/writes.
-  */
-  transports: {
-    [sepolia.id]: viemHttp({ url: SEPOLIA_RPC_URL }), 
-    // Note: rename to `viemHttp(...)` here instead of wagmi's default `http`,
-    // to keep naming consistent. Or if you prefer:
-    //   import { http as wagmiHttp } from "wagmi"
-    //   ...
-    //   [sepolia.id]: wagmiHttp({ url: SEPOLIA_RPC_URL })
+  chains: enabledChains,
+  connectors: wagmiConnectors,
+  ssr: true,
+  client({ chain }) {
+    let rpcFallbacks = [http()];
+
+    const rpcOverrideUrl = (scaffoldConfig.rpcOverrides as ScaffoldConfig["rpcOverrides"])?.[chain.id];
+    if (rpcOverrideUrl) {
+      console.log(`Using RPC override URL: ${rpcOverrideUrl} as primary RPC for chainId=${chain.id}`);
+      rpcFallbacks = [http(rpcOverrideUrl), http()];
+    } else {
+      const alchemyHttpUrl = getAlchemyHttpUrl(chain.id);
+      if (alchemyHttpUrl) {
+        const isUsingDefaultKey = scaffoldConfig.alchemyApiKey === DEFAULT_ALCHEMY_API_KEY;
+        console.log(`Using Alchemy URL: ${alchemyHttpUrl} as RPC for chainId=${chain.id}${isUsingDefaultKey ? " (using default API key)" : ""}`);
+        // If using default Scaffold-ETH 2 API key, we prioritize the default RPC
+        rpcFallbacks = isUsingDefaultKey ? [http(), http(alchemyHttpUrl)] : [http(alchemyHttpUrl), http()];
+      } else {
+        console.log(`No Alchemy URL found for chainId=${chain.id}, using default RPC`);
+      }
+    }
+
+    return createClient({
+      chain,
+      transport: fallback(rpcFallbacks),
+      ...(chain.id !== (hardhat as Chain).id
+        ? {
+            pollingInterval: scaffoldConfig.pollingInterval,
+          }
+        : {}),
+    });
   },
 });

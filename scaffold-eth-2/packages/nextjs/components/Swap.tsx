@@ -47,7 +47,7 @@ export function Swap({ tokenIn, tokenOut, decimalsIn = 18, decimalsOut = 18 }: S
       // Send the transaction on-chain
       const tx = await swapTokensAsync({
         address: routerAddress,
-        abi: routerAbi,
+        abi: routerAbi.abi,
         functionName: "swapExactTokensForTokens",
         args: [
           amountInWei,

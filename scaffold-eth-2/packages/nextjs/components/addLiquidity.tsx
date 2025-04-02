@@ -57,7 +57,7 @@ export function AddLiquidity({ routerAddress, tokenA, tokenB }: AddLiquidityProp
   const [amountA, setAmountA] = useState("");
   const [amountB, setAmountB] = useState("");
   const { address: userAddress } = useAccount();
-  const publicClient = usePublicClient();
+  const publicClient = usePublicClient({ chainId: 11155111 });
 
   // We'll have one write hook for all calls, but we can reuse it each time.
   const {

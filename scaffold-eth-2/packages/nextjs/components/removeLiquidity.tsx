@@ -55,7 +55,7 @@ export function RemoveLiquidity() {
       // Send the transaction on-chain
       const tx = await removeLiquidityAsync({
         address: routerAddress,  // Must be the router, not the pair
-        abi: routerAbi,          // Must include "removeLiquidity" in the ABI
+        abi: routerAbi.abi,          // Must include "removeLiquidity" in the ABI
         functionName: "removeLiquidity",
         args: [
           tokenA,
