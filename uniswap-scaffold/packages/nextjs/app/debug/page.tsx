@@ -1,7 +1,7 @@
 // "use client";
 // import React, { useState } from "react";
 // import { useAccount, useWriteContract } from "wagmi";
-// import tokenAbi from "@/abis/TestERC20.json";
+// import tokenAbi from "~~/abis/TestERC20.json";
 
 // const TOKENA_ADDRESS = process.env.NEXT_PUBLIC_TOKENA_ADDRESS as `0x${string}`;
 // const TOKENB_ADDRESS = process.env.NEXT_PUBLIC_TOKENB_ADDRESS as `0x${string}`;
@@ -99,7 +99,7 @@
 "use client";
 import React, { useState } from "react";
 import { useAccount, useWriteContract } from "wagmi";
-import tokenAbi from "@/abis/TestERC20.json";
+import tokenAbi from "~~/abis/TestERC20.json";
 
 const TOKENA_ADDRESS = process.env.NEXT_PUBLIC_TOKENA_ADDRESS as `0x${string}`;
 const TOKENB_ADDRESS = process.env.NEXT_PUBLIC_TOKENB_ADDRESS as `0x${string}`;

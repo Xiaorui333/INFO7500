@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { useWatchContractEvent } from "wagmi";
-import pairAbi from "@/abis/UniswapV2Pair.json";
+import pairAbi from "~~/abis/UniswapV2Pair.json";
 import { Chart } from "react-chartjs-2";
 import {
   Chart as ChartJS,

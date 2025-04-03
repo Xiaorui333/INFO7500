@@ -2,8 +2,8 @@
 import React, { useState } from "react";
 import { useAccount, useWriteContract, usePublicClient } from "wagmi";
 import { parseUnits, zeroAddress } from "viem";
-import routerAbi from "@/abis/UniswapV2Router02.json";
-import erc20Abi from "@/abis/TestERC20.json";
+import routerAbi from "~~/abis/UniswapV2Router02.json";
+import erc20Abi from "~~/abis/TestERC20.json";
 
 /**
  * Utility to check & request approval if the allowance is below the desired amount
