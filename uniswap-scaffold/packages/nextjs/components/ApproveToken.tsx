@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import { useAccount, useWriteContract } from "wagmi";
 import { parseUnits } from "viem";
-import erc20Abi from "@/abis/TestERC20.json"; 
+import erc20Abi from "~~/abis/TestERC20.json"; 
 
 const ROUTER_ADDRESS = process.env.NEXT_PUBLIC_UNISWAPV2_ROUTER02_ADDRESS as `0x${string}`;
 

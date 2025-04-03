@@ -2,7 +2,7 @@
 "use client";
 import React, { useState } from "react";
 import { useAccount, useWriteContract } from "wagmi";
-import routerAbi from "@/abis/UniswapV2Router02.json";
+import routerAbi from "~~/abis/UniswapV2Router02.json";
 
 interface RemoveLiquidityProps {
   pairAddress: `0x${string}`;

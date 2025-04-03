@@ -1,79 +1,72 @@
-import { sepolia } from "viem/chains";
+import { ChainWithAttributes, getAlchemyHttpUrl } from "./networks";
 import { CurrencyAmount, Token } from "@uniswap/sdk-core";
 import { Pair, Route } from "@uniswap/v2-sdk";
 import { Address, createPublicClient, fallback, http, parseAbi } from "viem";
+import { mainnet } from "viem/chains";
 
-// Load addresses from environment variables
-const WETH9_ADDRESS = process.env.NEXT_PUBLIC_WETH9_ADDRESS as `0x${string}`;
-const TOKENA_ADDRESS = process.env.NEXT_PUBLIC_TOKENA_ADDRESS as `0x${string}`;
-const TOKENB_ADDRESS = process.env.NEXT_PUBLIC_TOKENB_ADDRESS as `0x${string}`;
-const PAIR_ADDRESS = process.env.NEXT_PUBLIC_TOKENA_TOKENB_PAIR as `0x${string}`;
-
-// Create a public client for Sepolia using your Sepolia RPC URL
-const sepoliaRpcUrl = process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL;
+const alchemyHttpUrl = getAlchemyHttpUrl(mainnet.id);
+const rpcFallbacks = alchemyHttpUrl ? [http(alchemyHttpUrl), http()] : [http()];
 const publicClient = createPublicClient({
-  chain: sepolia,
-  transport: fallback([http(sepoliaRpcUrl)]),
+  chain: mainnet,
+  transport: fallback(rpcFallbacks),
 });
 
-// Minimal ABI for Uniswap V2 Pair functions
-const PAIR_ABI = parseAbi([
+const ABI = parseAbi([
   "function getReserves() external view returns (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast)",
   "function token0() external view returns (address)",
   "function token1() external view returns (address)",
 ]);
 
-export const fetchPriceFromUniswap = async (): Promise<number> => {
+export const fetchPriceFromUniswap = async (targetNetwork: ChainWithAttributes): Promise<number> => {
+  if (
+      targetNetwork.nativeCurrency.symbol !== "ETH" &&
+      targetNetwork.nativeCurrency.symbol !== "SEP" &&
+      !targetNetwork.nativeCurrencyTokenAddress
+  ) {
+    return 0;
+  }
   try {
-    // Create Token instances for TOKENA and TOKENB
-    // Use chainId 11155111 for Sepolia and assume 18 decimals for both tokens
-    const tokenA = new Token(11155111, TOKENA_ADDRESS, 18, "TKA", "Token A");
-    const tokenB = new Token(11155111, TOKENB_ADDRESS, 18, "TKB", "Token B");
+    const DAI = new Token(1, "0x6B175474E89094C44Da98b954EedeAC495271d0F", 18);
+    const TOKEN = new Token(
+        1,
+        targetNetwork.nativeCurrencyTokenAddress || "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+        18,
+    );
+    const pairAddress = Pair.getAddress(TOKEN, DAI) as Address;
 
-    // Fetch reserves from the provided pair address
+    const wagmiConfig = {
+      address: pairAddress,
+      abi: ABI,
+    };
+
     const reserves = await publicClient.readContract({
-      address: PAIR_ADDRESS,
-      abi: PAIR_ABI,
+      ...wagmiConfig,
       functionName: "getReserves",
     });
 
-    // Fetch token ordering from the pair
-    const token0Address = (await publicClient.readContract({
-      address: PAIR_ADDRESS,
-      abi: PAIR_ABI,
+    const token0Address = await publicClient.readContract({
+      ...wagmiConfig,
       functionName: "token0",
-    })) as string;
+    });
 
-    const token1Address = (await publicClient.readContract({
-      address: PAIR_ADDRESS,
-      abi: PAIR_ABI,
+    const token1Address = await publicClient.readContract({
+      ...wagmiConfig,
       functionName: "token1",
-    })) as string;
-
-    // Identify which token is token0 and token1 by comparing addresses (ignore case)
-    const token0 = [tokenA, tokenB].find(
-      token => token.address.toLowerCase() === token0Address.toLowerCase()
-    );
-    const token1 = [tokenA, tokenB].find(
-      token => token.address.toLowerCase() === token1Address.toLowerCase()
-    );
-
-    if (!token0 || !token1) {
-      throw new Error("Token addresses in pair do not match provided tokens.");
-    }
-
-    // Build a Pair instance using the fetched reserves
+    });
+    const token0 = [TOKEN, DAI].find(token => token.address === token0Address) as Token;
+    const token1 = [TOKEN, DAI].find(token => token.address === token1Address) as Token;
     const pair = new Pair(
-      CurrencyAmount.fromRawAmount(token0, reserves[0].toString()),
-      CurrencyAmount.fromRawAmount(token1, reserves[1].toString())
+        CurrencyAmount.fromRawAmount(token0, reserves[0].toString()),
+        CurrencyAmount.fromRawAmount(token1, reserves[1].toString()),
     );
-
-    // Build a route from tokenA to tokenB (price of tokenA in terms of tokenB)
-    const route = new Route([pair], tokenA, tokenB);
+    const route = new Route([pair], TOKEN, DAI);
     const price = parseFloat(route.midPrice.toSignificant(6));
     return price;
   } catch (error) {
-    console.error("Error fetching price on Sepolia:", error);
+    console.error(
+        `useNativeCurrencyPrice - Error fetching ${targetNetwork.nativeCurrency.symbol} price from Uniswap: `,
+        error,
+    );
     return 0;
   }
 };

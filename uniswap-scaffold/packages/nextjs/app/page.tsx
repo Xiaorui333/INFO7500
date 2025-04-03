@@ -1,12 +1,12 @@
 "use client";
 import React, { useState } from "react";
-import { PoolSelector } from "@/components/PoolSelector";
-import { ApproveToken } from "@/components/ApproveToken";
-import { AddLiquidity } from "@/components/addLiquidity";
-import { RemoveLiquidity } from "@/components/removeLiquidity";
-import { Swap } from "@/components/Swap";
-import { PoolAnalytics } from "@/components/PoolAnalytics"; // Bonding curve
-import { SwapPriceDistribution } from "@/components/SwapPriceDistribution"; // Price histogram
+import { PoolSelector } from "~~/components/PoolSelector";
+import { ApproveToken } from "~~/components/ApproveToken";
+import { AddLiquidity } from "~~/components/addLiquidity";
+import { RemoveLiquidity } from "~~/components/removeLiquidity";
+import { Swap } from "~~/components/Swap";
+import { PoolAnalytics } from "~~/components/PoolAnalytics"; // Bonding curve
+import { SwapPriceDistribution } from "~~/components/SwapPriceDistribution"; // Price histogram
 
 type EthAddress = `0x${string}`;
 

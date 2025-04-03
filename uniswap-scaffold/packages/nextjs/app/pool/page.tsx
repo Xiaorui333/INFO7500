@@ -1,11 +1,11 @@
 "use client";
 import React, { useState } from "react";
-import { PoolSelector } from "@/components/PoolSelector";
-import { AddLiquidity } from "@/components/addLiquidity";
-import { RemoveLiquidity } from "@/components/removeLiquidity";
-import { Swap } from "@/components/Swap";
-import { PoolAnalytics } from "@/components/PoolAnalytics";
-import { SwapPriceDistribution } from "@/components/SwapPriceDistribution";
+import { PoolSelector } from "~~/components/PoolSelector";
+import { AddLiquidity } from "~~/components/addLiquidity";
+import { RemoveLiquidity } from "~~/components/removeLiquidity";
+import { Swap } from "~~/components/Swap";
+import { PoolAnalytics } from "~~/components/PoolAnalytics";
+import { SwapPriceDistribution } from "~~/components/SwapPriceDistribution";
 
 const knownPairs = [
   {

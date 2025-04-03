@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import { useAccount, useWriteContract } from "wagmi";
 import { parseUnits } from "viem";
-import routerAbi from "@/abis/UniswapV2Router02.json";
+import routerAbi from "~~/abis/UniswapV2Router02.json";
 
 interface SwapProps {
   tokenIn: `0x${string}`;
