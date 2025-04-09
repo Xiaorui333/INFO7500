@@ -1,6 +1,7 @@
 //SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
+import "forge-std/Script.sol";
 import "./DeployHelpers.s.sol";
 import { DeployUniswapFactory } from "./DeployUniswapFactory.s.sol";
 
@@ -10,13 +11,13 @@ import { DeployUniswapFactory } from "./DeployUniswapFactory.s.sol";
  *
  * Example: yarn deploy # runs this script(without`--file` flag)
  */
-contract DeployScript is ScaffoldETHDeploy {
+contract DeployScript is Script {
     function run() external {
         // Deploys all your contracts sequentially
         // Add new deployments here when needed
 
-        DeployUniswapFactory deployYourContract = new DeployUniswapFactory();
-        deployYourContract.run();
+        DeployUniswapFactory deployFactory = new DeployUniswapFactory();
+        deployFactory.run();
 
         // Deploy another contract
         // DeployMyContract myContract = new DeployMyContract();

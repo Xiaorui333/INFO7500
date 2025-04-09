@@ -8,6 +8,7 @@ import "./interfaces/IUniswapV2Router02.sol";
 import "./libraries/UniswapV2Library.sol";
 import "contracts/core/interfaces/IERC20.sol";
 import "./interfaces/IWETH.sol";
+import {console} from "forge-std/console.sol";
 
 contract UniswapV2Router02 is IUniswapV2Router02 {
     address public immutable override factory;
@@ -37,14 +38,21 @@ contract UniswapV2Router02 is IUniswapV2Router02 {
         uint amountAMin,
         uint amountBMin
     ) internal virtual returns (uint amountA, uint amountB) {
+        console.log("_addLiquidity 0");
         // create the pair if it doesn't exist yet
         if (IUniswapV2Factory(factory).getPair(tokenA, tokenB) == address(0)) {
             IUniswapV2Factory(factory).createPair(tokenA, tokenB);
         }
+        console.log("_addLiquidity 1");
+
         (uint reserveA, uint reserveB) = UniswapV2Library.getReserves(factory, tokenA, tokenB);
+        console.log("_addLiquidity 2");
+
         if (reserveA == 0 && reserveB == 0) {
             (amountA, amountB) = (amountADesired, amountBDesired);
         } else {
+            console.log("_addLiquidity 3");
+
             uint amountBOptimal = UniswapV2Library.quote(amountADesired, reserveA, reserveB);
             if (amountBOptimal <= amountBDesired) {
                 require(amountBOptimal >= amountBMin, "UniswapV2Router: INSUFFICIENT_B_AMOUNT");
@@ -55,6 +63,7 @@ contract UniswapV2Router02 is IUniswapV2Router02 {
                 require(amountAOptimal >= amountAMin, "UniswapV2Router: INSUFFICIENT_A_AMOUNT");
                 (amountA, amountB) = (amountAOptimal, amountBDesired);
             }
+            console.log("_addLiquidity 4");
         }
     }
 
@@ -68,6 +77,7 @@ contract UniswapV2Router02 is IUniswapV2Router02 {
         address to,
         uint deadline
     ) external virtual override ensure(deadline) returns (uint amountA, uint amountB, uint liquidity) {
+        console.log("addLiquidity 0");
         (amountA, amountB) = _addLiquidity(
             tokenA,
             tokenB,
@@ -76,10 +86,20 @@ contract UniswapV2Router02 is IUniswapV2Router02 {
             amountAMin,
             amountBMin
         );
+        console.log("addLiquidity 1");
+
         address pair = UniswapV2Library.pairFor(factory, tokenA, tokenB);
+        console.log("addLiquidity 2");
+
         TransferHelper.safeTransferFrom(tokenA, msg.sender, pair, amountA);
+        console.log("addLiquidity 3");
+
         TransferHelper.safeTransferFrom(tokenB, msg.sender, pair, amountB);
+        console.log("addLiquidity 4");
+
         liquidity = IUniswapV2Pair(pair).mint(to);
+        console.log("addLiquidity 5");
+
     }
 
     function addLiquidityETH(
@@ -117,13 +137,24 @@ contract UniswapV2Router02 is IUniswapV2Router02 {
         address to,
         uint deadline
     ) public virtual override ensure(deadline) returns (uint amountA, uint amountB) {
+        console.log("removeLiquidity 0");
+
         address pair = UniswapV2Library.pairFor(factory, tokenA, tokenB);
+        console.log("removeLiquidity 1");
+
         IUniswapV2Pair(pair).transferFrom(msg.sender, pair, liquidity); // send liquidity to pair
+        console.log("removeLiquidity 2");
+
         (uint amount0, uint amount1) = IUniswapV2Pair(pair).burn(to);
+        console.log("removeLiquidity 3");
+
         (address token0, ) = UniswapV2Library.sortTokens(tokenA, tokenB);
+        console.log("removeLiquidity 4");
+
         (amountA, amountB) = (tokenA == token0) ? (amount0, amount1) : (amount1, amount0);
         require(amountA >= amountAMin, "UniswapV2Router: INSUFFICIENT_A_AMOUNT");
         require(amountB >= amountBMin, "UniswapV2Router: INSUFFICIENT_B_AMOUNT");
+        console.log("removeLiquidity 5");
     }
 
     function removeLiquidityETH(

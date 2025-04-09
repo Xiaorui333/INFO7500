@@ -5,7 +5,7 @@ import "forge-std/Test.sol";
 import {UniswapV2Factory}  from "contracts/core/UniswapV2Factory.sol";
 import {UniswapV2Pair}     from "contracts/core/UniswapV2Pair.sol";
 import {UniswapV2Router02} from "contracts/periphery/UniswapV2Router02.sol";
-import {TestERC20}         from "./TestERC20.sol";
+import {TestERC20}         from "contracts/periphery/test/TestERC20.sol";
 import {WETH9}             from "contracts/periphery/test/WETH9.sol";
 import {IERC20}            from "contracts/core/interfaces/IERC20.sol";
 import {IUniswapV2Callee}  from "contracts/core/interfaces/IUniswapV2Callee.sol";

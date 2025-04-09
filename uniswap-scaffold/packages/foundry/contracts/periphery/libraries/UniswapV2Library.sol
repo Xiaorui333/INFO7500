@@ -2,6 +2,9 @@
 pragma solidity ^0.8.20;
 
 import "contracts/core/interfaces/IUniswapV2Pair.sol";
+import "contracts/core/interfaces/IUniswapV2Factory.sol";
+
+import {UniswapV2Factory} from "../../core/UniswapV2Factory.sol";
 //import "contracts/core/UniswapV2Factory.sol";
 
 library UniswapV2Library {
@@ -20,13 +23,7 @@ library UniswapV2Library {
 ) internal view returns (address pair) {
     (address token0, address token1) = sortTokens(tokenA, tokenB);
     //bytes32 initCodeHash = UniswapV2Factory(factory).INIT_CODE_HASH;
-    pair = address(uint160(uint256(keccak256(abi.encodePacked(
-        hex"ff",
-        factory,
-        keccak256(abi.encodePacked(token0, token1)),
-        hex"6078aaba03a108e5de5810b5121e6685056938a2d74ddcc7b80cbbd50e32e481"
-        //initCodeHash
-    )))));
+    pair = IUniswapV2Factory(factory).getPair(token0, token1);
 }
 
     // fetches and sorts the reserves for a pair

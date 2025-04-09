@@ -8,6 +8,8 @@ import "./libraries/UQ112x112.sol";
 import "./interfaces/IERC20.sol";
 import "./interfaces/IUniswapV2Factory.sol";
 import "./interfaces/IUniswapV2Callee.sol";
+import {console} from "forge-std/console.sol";
+
 
 using UQ112x112 for uint224;
 
@@ -171,8 +173,11 @@ contract UniswapV2Pair is IUniswapV2Pair, UniswapV2ERC20 {
         if (_totalSupply == 0) {
             // first LP
             uint liquidityBefore = Math.sqrt(amount0 * amount1);
+            console.log("UniswapPair mint 0", liquidityBefore, MINIMUM_LIQUIDITY);
             liquidity = liquidityBefore - MINIMUM_LIQUIDITY;
+            console.log("UniswapPair mint 1");
             _mint(address(0), MINIMUM_LIQUIDITY); // lock
+            console.log("UniswapPair mint 2");
         } else {
             // subsequent LP
             uint liquidity0 = (amount0 * _totalSupply) / _reserve0;
