@@ -17,20 +17,25 @@ const ABI = parseAbi([
   "function token1() external view returns (address)",
 ]);
 
-export const fetchPriceFromUniswap = async (targetNetwork: ChainWithAttributes): Promise<number> => {
+export const fetchPriceFromUniswap = async (targetNetwork: ChainWithAttributes | undefined): Promise<number> => {
+  if (!targetNetwork || !targetNetwork.nativeCurrency) {
+    return 0;
+  }
+
   if (
-      targetNetwork.nativeCurrency.symbol !== "ETH" &&
-      targetNetwork.nativeCurrency.symbol !== "SEP" &&
-      !targetNetwork.nativeCurrencyTokenAddress
+    targetNetwork.nativeCurrency.symbol !== "ETH" &&
+    targetNetwork.nativeCurrency.symbol !== "SEP" &&
+    !targetNetwork.nativeCurrencyTokenAddress
   ) {
     return 0;
   }
+
   try {
     const DAI = new Token(1, "0x6B175474E89094C44Da98b954EedeAC495271d0F", 18);
     const TOKEN = new Token(
-        1,
-        targetNetwork.nativeCurrencyTokenAddress || "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
-        18,
+      1,
+      targetNetwork.nativeCurrencyTokenAddress || "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+      18,
     );
     const pairAddress = Pair.getAddress(TOKEN, DAI) as Address;
 
@@ -53,19 +58,20 @@ export const fetchPriceFromUniswap = async (targetNetwork: ChainWithAttributes):
       ...wagmiConfig,
       functionName: "token1",
     });
+
     const token0 = [TOKEN, DAI].find(token => token.address === token0Address) as Token;
     const token1 = [TOKEN, DAI].find(token => token.address === token1Address) as Token;
     const pair = new Pair(
-        CurrencyAmount.fromRawAmount(token0, reserves[0].toString()),
-        CurrencyAmount.fromRawAmount(token1, reserves[1].toString()),
+      CurrencyAmount.fromRawAmount(token0, reserves[0].toString()),
+      CurrencyAmount.fromRawAmount(token1, reserves[1].toString()),
     );
     const route = new Route([pair], TOKEN, DAI);
     const price = parseFloat(route.midPrice.toSignificant(6));
     return price;
   } catch (error) {
     console.error(
-        `useNativeCurrencyPrice - Error fetching ${targetNetwork.nativeCurrency.symbol} price from Uniswap: `,
-        error,
+      `useNativeCurrencyPrice - Error fetching ${targetNetwork.nativeCurrency.symbol} price from Uniswap: `,
+      error,
     );
     return 0;
   }

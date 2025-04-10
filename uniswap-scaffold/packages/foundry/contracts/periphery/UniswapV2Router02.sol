@@ -267,23 +267,29 @@ contract UniswapV2Router02 is IUniswapV2Router02 {
     // **** SWAP ****
     // requires the initial amount to have already been sent to the first pair
     function _swap(uint[] memory amounts, address[] memory path, address _to) internal virtual {
+        console.log("_swap 0 - Start internal swap");
         for (uint i; i < path.length - 1; i++) {
+            console.log("_swap 1 - Processing path step", i);
             (address input, address output) = (path[i], path[i + 1]);
             (address token0,) = UniswapV2Library.sortTokens(input, output);
             uint amountOut = amounts[i + 1];
+            console.log("_swap 2 - Calculated amount out");
             // fix type mismatch by ensuring both branches return (uint, uint)
             (uint amount0Out, uint amount1Out) = (input == token0)
                 ? (uint(0), amountOut)
                 : (amountOut, uint(0));
+            console.log("_swap 3 - Determined output amounts");
             address to = (i < path.length - 2)
                 ? UniswapV2Library.pairFor(factory, output, path[i + 2])
                 : _to;
+            console.log("_swap 4 - Determined recipient address");
             IUniswapV2Pair(UniswapV2Library.pairFor(factory, input, output)).swap(
                 amount0Out,
                 amount1Out,
                 to,
                 new bytes(0)
             );
+            console.log("_swap 5 - Swap executed");
         }
     }
 
@@ -294,17 +300,20 @@ contract UniswapV2Router02 is IUniswapV2Router02 {
         address to,
         uint deadline
     ) external virtual override ensure(deadline) returns (uint[] memory amounts) {
+        console.log("1");
         amounts = UniswapV2Library.getAmountsOut(factory, amountIn, path);
         require(
             amounts[amounts.length - 1] >= amountOutMin,
             "UniswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT"
         );
+        console.log("2");
         TransferHelper.safeTransferFrom(
             path[0],
             msg.sender,
             UniswapV2Library.pairFor(factory, path[0], path[1]),
             amounts[0]
         );
+        console.log("3");
         _swap(amounts, path, to);
     }
 
@@ -315,14 +324,17 @@ contract UniswapV2Router02 is IUniswapV2Router02 {
         address to,
         uint deadline
     ) external virtual override ensure(deadline) returns (uint[] memory amounts) {
+        console.log("1");
         amounts = UniswapV2Library.getAmountsIn(factory, amountOut, path);
         require(amounts[0] <= amountInMax, "UniswapV2Router: EXCESSIVE_INPUT_AMOUNT");
+        console.log("2");
         TransferHelper.safeTransferFrom(
             path[0],
             msg.sender,
             UniswapV2Library.pairFor(factory, path[0], path[1]),
             amounts[0]
         );
+        console.log("3");
         _swap(amounts, path, to);
     }
 
