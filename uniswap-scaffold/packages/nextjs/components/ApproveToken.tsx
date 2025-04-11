@@ -20,6 +20,7 @@ export function ApproveToken({ tokenAddress, label, initialAmount = "1000" }: Ap
 
   const { writeContractAsync, isPending } = useWriteContract();
 
+  console.log("tokenAddress: ", tokenAddress)
   const handleApprove = async () => {
     try {
       const tx = await writeContractAsync({

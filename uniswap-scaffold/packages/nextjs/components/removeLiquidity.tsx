@@ -1,25 +1,24 @@
-
 "use client";
 import React, { useState } from "react";
 import { useAccount, useWriteContract } from "wagmi";
+import { parseUnits } from "viem"; // ✅ 用 viem 提供的精度函数
 import routerAbi from "~~/abis/UniswapV2Router02.json";
 
+const ROUTER_ADDRESS = process.env.NEXT_PUBLIC_UNISWAPV2_ROUTER02_ADDRESS as `0x${string}`;
+
 interface RemoveLiquidityProps {
-  pairAddress: `0x${string}`;
   tokenA: `0x${string}`;
   tokenB: `0x${string}`;
 }
 
-export function RemoveLiquidity({ pairAddress, tokenA, tokenB }: RemoveLiquidityProps) {
+export function RemoveLiquidity({ tokenA, tokenB }: RemoveLiquidityProps) {
   const { address: userAddress } = useAccount();
-
-  // Example state for LP tokens to remove
   const [lpTokens, setLpTokens] = useState("");
-  const lpTokensInWei = lpTokens ? BigInt(Number(lpTokens) * 1e18) : 0n;
+  const lpTokensInWei = lpTokens ? parseUnits(lpTokens, 18) : 0n;
   const deadline = BigInt(Math.floor(Date.now() / 1000) + 60 * 20);
+  const minAmount = parseUnits("0", 18); // for test purpose
 
-  // Using writeContractAsync for the removeLiquidity call.
-  const { writeContractAsync, error } = useWriteContract();
+  const { writeContract, isPending, error } = useWriteContract();
 
   async function handleRemove() {
     if (!userAddress) {
@@ -27,15 +26,15 @@ export function RemoveLiquidity({ pairAddress, tokenA, tokenB }: RemoveLiquidity
       return;
     }
     try {
-      const tx = await writeContractAsync({
-        address: pairAddress, // assuming the router is at the pair address; adjust if needed
-        abi: routerAbi.abi,   // assuming routerAbi has a top-level "abi" field; adjust if needed
+      const tx = await writeContract({
+        address: ROUTER_ADDRESS,
+        abi: routerAbi.abi,
         functionName: "removeLiquidity",
-        args: [tokenA, tokenB, lpTokensInWei, 0n, 0n, userAddress, deadline],
+        args: [tokenA, tokenB, lpTokensInWei, minAmount, minAmount, userAddress, deadline],
       });
-      console.log("Remove Liquidity TX submitted:", tx);
+      console.log("✅ Remove Liquidity TX submitted:", tx);
     } catch (err) {
-      console.error("RemoveLiquidity failed:", err);
+      console.error("❌ RemoveLiquidity failed:", err);
     }
   }
 
@@ -53,9 +52,21 @@ export function RemoveLiquidity({ pairAddress, tokenA, tokenB }: RemoveLiquidity
         />
       </div>
 
-      <button onClick={handleRemove}>Remove Liquidity</button>
+      <button 
+        onClick={handleRemove}
+        disabled={isPending}
+      >
+        {isPending ? "Removing..." : "Remove Liquidity"}
+      </button>
       {error && <p style={{ color: "red" }}>Error: {error.message}</p>}
-      </div>
-       );
-    }
+    </div>
+  );
 
+  console.log("Params:", {
+    tokenA,
+    tokenB,
+    lpTokensInWei: lpTokensInWei.toString(),
+    userAddress,
+    deadline: deadline.toString()
+  });  
+}

@@ -185,7 +185,7 @@ const deployedContracts = {
         },
       ],
       inheritedFunctions: {},
-      deploymentFile: "run-1743712615.json",
+      deploymentFile: "run-1744303752.json",
       deploymentScript: "Deploy.s.sol",
     },
     WETH9: {
@@ -473,7 +473,7 @@ const deployedContracts = {
         },
       ],
       inheritedFunctions: {},
-      deploymentFile: "run-1743712615.json",
+      deploymentFile: "run-1744303752.json",
       deploymentScript: "Deploy.s.sol",
     },
     UniswapV2Router02: {
@@ -1452,7 +1452,7 @@ const deployedContracts = {
         },
       ],
       inheritedFunctions: {},
-      deploymentFile: "run-1743712615.json",
+      deploymentFile: "run-1744303752.json",
       deploymentScript: "Deploy.s.sol",
     },
     TestERC20: {
@@ -1462,17 +1462,17 @@ const deployedContracts = {
           type: "constructor",
           inputs: [
             {
-              name: "_name",
+              name: "n",
               type: "string",
               internalType: "string",
             },
             {
-              name: "_symbol",
+              name: "s",
               type: "string",
               internalType: "string",
             },
             {
-              name: "_decimals",
+              name: "d",
               type: "uint8",
               internalType: "uint8",
             },
@@ -1484,12 +1484,12 @@ const deployedContracts = {
           name: "allowance",
           inputs: [
             {
-              name: "",
+              name: "owner",
               type: "address",
               internalType: "address",
             },
             {
-              name: "",
+              name: "spender",
               type: "address",
               internalType: "address",
             },
@@ -1532,7 +1532,7 @@ const deployedContracts = {
           name: "balanceOf",
           inputs: [
             {
-              name: "",
+              name: "account",
               type: "address",
               internalType: "address",
             },
@@ -1564,7 +1564,7 @@ const deployedContracts = {
           name: "mint",
           inputs: [
             {
-              name: "to",
+              name: "account",
               type: "address",
               internalType: "address",
             },
@@ -1669,9 +1669,59 @@ const deployedContracts = {
           ],
           stateMutability: "nonpayable",
         },
+        {
+          type: "event",
+          name: "Approval",
+          inputs: [
+            {
+              name: "owner",
+              type: "address",
+              indexed: true,
+              internalType: "address",
+            },
+            {
+              name: "spender",
+              type: "address",
+              indexed: true,
+              internalType: "address",
+            },
+            {
+              name: "value",
+              type: "uint256",
+              indexed: false,
+              internalType: "uint256",
+            },
+          ],
+          anonymous: false,
+        },
+        {
+          type: "event",
+          name: "Transfer",
+          inputs: [
+            {
+              name: "from",
+              type: "address",
+              indexed: true,
+              internalType: "address",
+            },
+            {
+              name: "to",
+              type: "address",
+              indexed: true,
+              internalType: "address",
+            },
+            {
+              name: "value",
+              type: "uint256",
+              indexed: false,
+              internalType: "uint256",
+            },
+          ],
+          anonymous: false,
+        },
       ],
       inheritedFunctions: {},
-      deploymentFile: "run-1743712615.json",
+      deploymentFile: "run-1744303752.json",
       deploymentScript: "Deploy.s.sol",
     },
   },
