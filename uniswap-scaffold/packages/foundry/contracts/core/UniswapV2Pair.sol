@@ -57,7 +57,16 @@ contract UniswapV2Pair is IUniswapV2Pair, UniswapV2ERC20 {
     // ------------------------------------------------
     // event Mint(...);
     // event Burn(...);
-    // event Swap(...);
+    event Swap(
+        address indexed sender,
+        uint amount0In,
+        uint amount1In,
+        uint amount0Out,
+        uint amount1Out,
+        address indexed to,
+        uint reserve0,
+        uint reserve1
+    );
     // event Sync(...);
 
     // ------------------------------------------------
@@ -280,7 +289,7 @@ contract UniswapV2Pair is IUniswapV2Pair, UniswapV2ERC20 {
         }
 
         _update(balance0, balance1, _reserve0, _reserve1);
-        emit Swap(msg.sender, amount0In, amount1In, amount0Out, amount1Out, to);
+        emit Swap(msg.sender, amount0In, amount1In, amount0Out, amount1Out, to, _reserve0, _reserve1);
     }
 
     function skim(address to) external override lock {

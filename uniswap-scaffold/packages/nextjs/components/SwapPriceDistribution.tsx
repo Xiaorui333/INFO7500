@@ -97,16 +97,20 @@ export function SwapPriceDistribution({ pairAddress }: SwapPriceDistributionProp
   }, [swapPrices]);
 
   return (
-    <div style={{ border: "1px solid #ddd", padding: "1rem", borderRadius: "8px", marginBottom: "1rem" }}>
-      <h3>Swap Price Distribution (Past Swaps)</h3>
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-2">
+        <p className="text-sm text-gray-500">Showing real-time swap execution prices</p>
+      </div>
       {(!histData || !histData.labels.length) ? (
-        <p>No swap events yet.</p>
+        <div className="text-center py-4">No swap events yet.</div>
       ) : (
-        <div style={{ width: "600px", height: "400px" }}>
+        <div className="w-full h-[400px]">
           <Chart
             type="bar"
             data={histData}
             options={{
+              responsive: true,
+              maintainAspectRatio: false,
               scales: {
                 x: {
                   title: { display: true, text: "Price Bin (floored integer)" },
@@ -116,6 +120,15 @@ export function SwapPriceDistribution({ pairAddress }: SwapPriceDistributionProp
                   beginAtZero: true,
                 },
               },
+              plugins: {
+                tooltip: {
+                  callbacks: {
+                    label: function(context) {
+                      return `Count: ${context.raw}`;
+                    }
+                  }
+                }
+              }
             }}
           />
         </div>
