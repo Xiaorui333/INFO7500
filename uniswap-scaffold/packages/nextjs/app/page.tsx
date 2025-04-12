@@ -5,8 +5,8 @@ import { ApproveToken } from "~~/components/ApproveToken";
 import { AddLiquidity } from "~~/components/addLiquidity";
 import { RemoveLiquidity } from "~~/components/removeLiquidity";
 import { Swap } from "~~/components/Swap";
-import { PoolAnalytics } from "~~/components/PoolAnalytics"; // Bonding curve
-import { SwapPriceDistribution } from "~~/components/SwapPriceDistribution"; // Price histogram
+import { PoolAnalytics } from "~~/components/PoolAnalytics";
+import { SwapPriceDistribution } from "~~/components/SwapPriceDistribution";
 
 type EthAddress = `0x${string}`;
 
@@ -40,49 +40,48 @@ export default function HomePage() {
   };
 
   return (
-    <main style={{ padding: "2rem", maxWidth: "800px", margin: "0 auto", fontFamily: "Arial, sans-serif" }}>
-      <h1 style={{ textAlign: "center", marginBottom: "1.5rem" }}>UniswapV2 Demo</h1>
+    <div className="flex flex-col items-center">
+      <div className="w-full max-w-4xl">
+        {/* Pool Selection */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-8">
+          <h2 className="text-2xl font-bold mb-4">Select Pool</h2>
+          <PoolSelector pairs={knownPairs} onSelectPool={handleSelectPool} />
+        </div>
 
-      {/* Pool Selector */}
-      <section style={{ marginBottom: "2rem", padding: "1rem", border: "1px solid #ccc", borderRadius: "8px" }}>
-        <PoolSelector pairs={knownPairs} onSelectPool={handleSelectPool} />
-      </section>
-
-      {selectedPair && (
-        <>
-          {/* Token Approvals */}
-          <section style={{ marginBottom: "2rem", padding: "1rem", border: "1px solid #ccc", borderRadius: "8px" }}>
-            <h2>Token Approvals</h2>
-            <p>Please approve the router to spend your tokens.</p>
-            <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
-              <ApproveToken tokenAddress={tokenA} label="Approve Token A" />
-              <ApproveToken tokenAddress={tokenB} label="Approve Token B" />
+        {/* Pool Operations */}
+        {selectedPair && (
+          <div className="mt-8">
+            {/* Token Approvals */}
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-8">
+              <h2 className="text-2xl font-bold mb-4">Token Approvals</h2>
+              <p className="mb-4">Please approve the router to spend your tokens.</p>
+              <div className="flex gap-4 flex-wrap">
+                <ApproveToken tokenAddress={tokenA} label="Approve Token A" />
+                <ApproveToken tokenAddress={tokenB} label="Approve Token B" />
+              </div>
             </div>
-          </section>
 
-          {/* Pool Operations */}
-          <section style={{ marginBottom: "2rem", padding: "1rem", border: "1px solid #ccc", borderRadius: "8px" }}>
-            <h2>Pool Operations</h2>
-            <AddLiquidity
-              routerAddress={process.env.NEXT_PUBLIC_UNISWAPV2_ROUTER02_ADDRESS as EthAddress}
-              tokenA={tokenA}
-              tokenB={tokenB}
-            />
-            <RemoveLiquidity pairAddress={selectedPair as EthAddress} tokenA={tokenA} tokenB={tokenB} />
-            <Swap tokenIn={tokenA} tokenOut={tokenB} />
-          </section>
+            {/* Pool Operations */}
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-8">
+              <h2 className="text-2xl font-bold mb-4">Pool Operations</h2>
+              <AddLiquidity
+                routerAddress={process.env.NEXT_PUBLIC_UNISWAPV2_ROUTER02_ADDRESS as EthAddress}
+                tokenA={tokenA}
+                tokenB={tokenB}
+              />
+              <RemoveLiquidity pairAddress={selectedPair as EthAddress} tokenA={tokenA} tokenB={tokenB} />
+              <Swap tokenIn={tokenA} tokenOut={tokenB} />
+            </div>
 
-          {/* Pool Analytics */}
-          <section style={{ marginBottom: "2rem", padding: "1rem", border: "1px solid #ccc", borderRadius: "8px" }}>
-            <h2>Pool Analytics</h2>
-            {/* Bonding curve from getReserves */}
-            <PoolAnalytics pairAddress={selectedPair as EthAddress} />
-
-            {/* Swap Price Distribution chart from Swap events */}
-            <SwapPriceDistribution pairAddress={selectedPair as EthAddress} />
-          </section>
-        </>
-      )}
-    </main>
+            {/* Pool Analytics */}
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+              <h2 className="text-2xl font-bold mb-4">Pool Analytics</h2>
+              <PoolAnalytics pairAddress={selectedPair as EthAddress} />
+              <SwapPriceDistribution pairAddress={selectedPair as EthAddress} />
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
