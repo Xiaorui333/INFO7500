@@ -69,7 +69,7 @@ export default function HomePage() {
                 tokenA={tokenA}
                 tokenB={tokenB}
               />
-              <RemoveLiquidity pairAddress={selectedPair as EthAddress} tokenA={tokenA} tokenB={tokenB} />
+              <RemoveLiquidity tokenA={tokenA} tokenB={tokenB} />
               <Swap tokenIn={tokenA} tokenOut={tokenB} />
             </div>
 
