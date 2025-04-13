@@ -55,6 +55,7 @@ export default function PoolPage() {
           <RemoveLiquidity
             tokenA={tokenA as `0x${string}`}
             tokenB={tokenB as `0x${string}`}
+            pairAddress={selectedPair as `0x${string}`}
           />
 
           <Swap tokenIn={tokenA as `0x${string}`} tokenOut={tokenB as `0x${string}`} />

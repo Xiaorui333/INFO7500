@@ -120,6 +120,7 @@ function computeSwapPrice(args: {
 
 export function SwapPriceDistribution({ pairAddress }: SwapPriceDistributionProps) {
   const [swapPrices, setSwapPrices] = useState<number[]>([]);
+  const [binSize, setBinSize] = useState<number>(0.01); // 默认使用0.01精度的区间
   const publicClient = usePublicClient();
   
   console.log("=== SwapPriceDistribution rendering ===");
@@ -300,14 +301,48 @@ export function SwapPriceDistribution({ pairAddress }: SwapPriceDistributionProp
       return;
     }
     
+    // 动态计算适合的区间大小
+    const calculateDynamicBinSize = () => {
+      // 找出价格的最大值和最小值
+      const minPrice = Math.min(...swapPrices);
+      const maxPrice = Math.max(...swapPrices);
+      const range = maxPrice - minPrice;
+      
+      console.log(`价格范围: ${minPrice.toFixed(4)} - ${maxPrice.toFixed(4)}, 差值: ${range.toFixed(4)}`);
+      
+      // 根据范围动态计算区间大小，目标是生成10-20个区间
+      let dynamicBinSize = 0.01; // 默认
+      
+      if (range <= 0.05) {
+        dynamicBinSize = 0.005; // 非常小的范围用0.005
+      } else if (range <= 0.1) {
+        dynamicBinSize = 0.01; // 小范围用0.01
+      } else if (range <= 0.5) {
+        dynamicBinSize = 0.02; // 中等范围用0.02
+      } else if (range <= 1) {
+        dynamicBinSize = 0.05; // 较大范围用0.05
+      } else {
+        dynamicBinSize = 0.1; // 大范围用0.1
+      }
+      
+      console.log(`动态计算的区间大小: ${dynamicBinSize}`);
+      return dynamicBinSize;
+    };
+    
+    // 使用用户设置的区间大小
+    const effectiveBinSize = binSize;
+    const precision = 1 / effectiveBinSize; // 例如，binSize=0.01时，precision=100
+    
+    console.log(`使用区间大小: ${effectiveBinSize}, 精度: ${precision}`);
     console.log("Building frequency map...");
-    // Build a frequency map
+    
+    // Build a frequency map with the selected bin size
     const binCounts: Record<string, number> = {};
     swapPrices.forEach((price) => {
-      // integer bin
-      const bin = Math.floor(price).toString();
+      const binValue = Math.floor(price * precision) / precision;
+      const bin = binValue.toFixed(4); // 使用4位小数确保精度
       binCounts[bin] = (binCounts[bin] || 0) + 1;
-      console.log(`Price ${price} added to bin ${bin}, count now ${binCounts[bin]}`);
+      console.log(`Price ${price.toFixed(6)} added to bin ${bin}, count now ${binCounts[bin]}`);
     });
 
     console.log("Frequency map built:", binCounts);
@@ -318,7 +353,7 @@ export function SwapPriceDistribution({ pairAddress }: SwapPriceDistributionProp
         bin: binKey,
         count: binCounts[binKey],
       }))
-      .sort((a, b) => parseInt(a.bin) - parseInt(b.bin));
+      .sort((a, b) => parseFloat(a.bin) - parseFloat(b.bin)); // 使用parseFloat而不是parseInt
 
     console.log("Distribution array prepared:", distArray);
     
@@ -327,7 +362,7 @@ export function SwapPriceDistribution({ pairAddress }: SwapPriceDistributionProp
       labels: distArray.map((item) => item.bin),
       datasets: [
         {
-          label: "Swap Execution Price",
+          label: "Swap Price Distribution",
           data: distArray.map((item) => item.count),
           backgroundColor: "#82ca9d",
         },
@@ -336,20 +371,40 @@ export function SwapPriceDistribution({ pairAddress }: SwapPriceDistributionProp
     
     console.log("Setting histogram data:", chartData);
     setHistData(chartData);
-  }, [swapPrices]);
+  }, [swapPrices, binSize]); // 添加binSize作为依赖
 
   console.log("Before rendering - histData:", histData);
   console.log("Before rendering - swapPrices:", swapPrices);
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-2">
-        <p className="text-sm text-gray-500">Showing real-time swap execution prices</p>
+    <div className="flex flex-col gap-3 bg-base-100 rounded-lg">
+      <div className="flex flex-col gap-2 mb-2">
+        <div className="flex items-center mb-2">
+          <span className="text-sm font-medium">Swap Execution Prices</span>
+        </div>
+        
+        {/* Bin size control buttons */}
+        <div className="flex flex-wrap items-center gap-2 mt-1">
+          <p className="text-xs text-base-content/70">Precision:</p>
+          {[0.001, 0.005, 0.01, 0.02, 0.05, 0.1].map((size) => (
+            <button
+              key={size}
+              onClick={() => setBinSize(size)}
+              className={`px-2 py-0.5 text-xs rounded ${
+                binSize === size 
+                  ? "bg-blue-500 text-white" 
+                  : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+              }`}
+            >
+              {size}
+            </button>
+          ))}
+        </div>
       </div>
       {(!histData || !histData.labels.length) ? (
         <div className="text-center py-4">No swap events yet.</div>
       ) : (
-        <div className="w-full h-[400px]">
+        <div className="w-full h-[350px]">
           <Bar
             data={histData}
             options={{
@@ -357,7 +412,7 @@ export function SwapPriceDistribution({ pairAddress }: SwapPriceDistributionProp
               maintainAspectRatio: false,
               scales: {
                 x: {
-                  title: { display: true, text: "Price Bin (floored integer)" },
+                  title: { display: true, text: `Price Bins (${binSize} precision)` },
                 },
                 y: {
                   title: { display: true, text: "Swap Count" },
@@ -365,10 +420,25 @@ export function SwapPriceDistribution({ pairAddress }: SwapPriceDistributionProp
                 },
               },
               plugins: {
+                legend: {
+                  display: true,
+                  position: 'top',
+                  labels: {
+                    boxWidth: 20,
+                    font: {
+                      size: 12
+                    }
+                  }
+                },
                 tooltip: {
                   callbacks: {
                     label: function(context) {
                       return `Count: ${context.raw}`;
+                    },
+                    title: function(tooltipItems) {
+                      const item = tooltipItems[0];
+                      const bin = item.label;
+                      return `Price: ${bin}`;
                     }
                   }
                 }
