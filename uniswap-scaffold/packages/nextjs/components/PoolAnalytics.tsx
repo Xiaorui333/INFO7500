@@ -10,12 +10,23 @@ import {
   LogarithmicScale,
   PointElement,
   LineElement,
+  LineController,
   ScatterController,
   Tooltip,
   Legend,
 } from "chart.js";
 
-ChartJS.register(CategoryScale, LinearScale, LogarithmicScale, PointElement, LineElement, ScatterController, Tooltip, Legend);
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  LogarithmicScale,
+  PointElement,
+  LineElement,
+  LineController,
+  ScatterController,
+  Tooltip,
+  Legend
+);
 
 interface PoolAnalyticsProps {
   pairAddress: `0x${string}`;

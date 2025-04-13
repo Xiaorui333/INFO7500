@@ -7,13 +7,14 @@ import {
   CategoryScale,
   LinearScale,
   BarElement,
+  BarController,
   Tooltip,
   Legend,
   ChartOptions,
 } from "chart.js";
 
 // 注册 Chart.js 组件
-ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend);
+ChartJS.register(CategoryScale, LinearScale, BarElement, BarController, Tooltip, Legend);
 
 // 自定义Pair ABI，匹配包含reserve0和reserve1的Swap事件
 const CUSTOM_PAIR_ABI = [
