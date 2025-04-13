@@ -18,7 +18,7 @@ export function useUniswapFactoryRead(functionName: string, args: any[] = []) {
 
 export function useUniswapPairRead(functionName: string, args: any[] = []) {
   return useContractRead({
-    address: process.env.NEXT_PUBLIC_UNISWAPV2_PAIR_ADDRESS as `0x${string}`,
+    address: process.env.NEXT_PUBLIC_TOKENA_TOKENB_PAIR as `0x${string}`,
     abi: getAbi(pairArtifact),
     functionName,
     args,

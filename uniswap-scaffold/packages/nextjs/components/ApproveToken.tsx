@@ -12,6 +12,7 @@ interface ApproveTokenProps {
   initialAmount?: string;
 }
 
+
 export function ApproveToken({ tokenAddress, label, initialAmount = "1000" }: ApproveTokenProps) {
   // const { address: userAddress } = useAccount();
   const [amount, setAmount] = useState(initialAmount);

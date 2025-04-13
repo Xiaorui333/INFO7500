@@ -1,6 +1,6 @@
 import { wagmiConnectors } from "./wagmiConnectors";
-import { Chain, createClient, fallback, http } from "viem";
-import { hardhat, mainnet } from "viem/chains";
+import { Chain, createClient, fallback, http, Transport } from "viem";
+import { hardhat, mainnet, sepolia } from "viem/chains";
 import { createConfig } from "wagmi";
 import scaffoldConfig, { DEFAULT_ALCHEMY_API_KEY, ScaffoldConfig } from "~~/scaffold.config";
 import { getAlchemyHttpUrl } from "~~/utils/scaffold-eth";
@@ -22,28 +22,32 @@ export const wagmiConfig = createConfig({
   connectors: wagmiConnectors,
   ssr: true,
   client({ chain }) {
-    let rpcFallbacks = [http()];
-
+    let transport: Transport;
     const rpcOverrideUrl = (scaffoldConfig.rpcOverrides as ScaffoldConfig["rpcOverrides"])?.[chain.id];
-    if (rpcOverrideUrl) {
-      console.log(`Using RPC override URL: ${rpcOverrideUrl} as primary RPC for chainId=${chain.id}`);
-      rpcFallbacks = [http(rpcOverrideUrl), http()];
+    console.log(`[wagmiConfig] Processing chain ${chain.name} (ID: ${chain.id}). Override URL found: ${rpcOverrideUrl || 'None'}`);
+
+    if (chain.id === sepolia.id && rpcOverrideUrl) {
+      console.log(`Using DIRECT HTTP Transport for Sepolia (ID ${chain.id}): ${rpcOverrideUrl}`);
+      transport = http(rpcOverrideUrl);
     } else {
+      console.log(`[wagmiConfig] Using FALLBACK logic for chain ${chain.id}`);
+      let rpcFallbacks: ReturnType<typeof http>[] = [http()];
       const alchemyHttpUrl = getAlchemyHttpUrl(chain.id);
+
       if (alchemyHttpUrl) {
         const isUsingDefaultKey = scaffoldConfig.alchemyApiKey === DEFAULT_ALCHEMY_API_KEY;
-        console.log(`Using Alchemy URL: ${alchemyHttpUrl} as RPC for chainId=${chain.id}${isUsingDefaultKey ? " (using default API key)" : ""}`);
-        // If using default Scaffold-ETH 2 API key, we prioritize the default RPC
+        console.log(`[wagmiConfig] Using Alchemy URL: ${alchemyHttpUrl} for chain ${chain.id}${isUsingDefaultKey ? " (default key)" : ""}`);
         rpcFallbacks = isUsingDefaultKey ? [http(), http(alchemyHttpUrl)] : [http(alchemyHttpUrl), http()];
       } else {
-        console.log(`No Alchemy URL found for chainId=${chain.id}, using default RPC`);
+        console.log(`[wagmiConfig] No specific RPC found for chain ${chain.id}, using default public RPC`);
       }
+      transport = fallback(rpcFallbacks);
     }
 
     return createClient({
       chain,
-      transport: fallback(rpcFallbacks),
-      ...(chain.id !== (hardhat as Chain).id
+      transport,
+      ...((chain.id as number) !== hardhat.id
         ? {
             pollingInterval: scaffoldConfig.pollingInterval,
           }

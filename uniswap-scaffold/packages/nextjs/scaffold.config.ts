@@ -4,12 +4,15 @@ export type ScaffoldConfig = {
   targetNetworks: readonly chains.Chain[];
   pollingInterval: number;
   alchemyApiKey: string;
-  rpcOverrides?: Record<number, string>;
+  rpcOverrides?: Record<number, string | undefined>;
   walletConnectProjectId: string;
   onlyLocalBurnerWallet: boolean;
 };
 
 export const DEFAULT_ALCHEMY_API_KEY = "oKxs-03sij-U_N0iOlrSsZFr29-IqbuF";
+
+// Read RPC override from environment variable
+const sepoliaRpcOverride = process.env.NEXT_PUBLIC_RPC_URL;
 
 const scaffoldConfig = {
   // The networks on which your DApp is live
@@ -27,8 +30,9 @@ const scaffoldConfig = {
 
   // If you want to use a different RPC for a specific network, you can add it here.
   // The key is the chain ID, and the value is the HTTP RPC URL
+  // Read the Sepolia RPC override from the environment variable
   rpcOverrides: {
-    [chains.sepolia.id]: "https://virtual.sepolia.rpc.tenderly.co/eaa967f0-eb31-4fd9-b538-2689b3831a35",
+    [chains.sepolia.id]: sepoliaRpcOverride, 
   },
 
   // This is ours WalletConnect's default project ID.
@@ -40,5 +44,8 @@ const scaffoldConfig = {
   // Only show the Burner Wallet when running on hardhat network
   onlyLocalBurnerWallet: true,
 } as const satisfies ScaffoldConfig;
+
+// Log the effective RPC override being used for Sepolia
+console.log(`[scaffold.config] Effective Sepolia RPC Override: ${scaffoldConfig.rpcOverrides[chains.sepolia.id] || 'Not Set (will use default/Alchemy)'}`);
 
 export default scaffoldConfig;

@@ -34,10 +34,14 @@ export default function HomePage() {
   const [tokenB, setTokenB] = useState<EthAddress>("0x0000000000000000000000000000000000000000");
 
   const handleSelectPool = (selectedTokenA: EthAddress, selectedTokenB: EthAddress, pairAddress: string) => {
+    console.log("[HomePage] Pool Selected:", { selectedTokenA, selectedTokenB, pairAddress });
     setSelectedPair(pairAddress);
     setTokenA(selectedTokenA);
     setTokenB(selectedTokenB);
   };
+
+  // Log selectedPair whenever it changes or before rendering operations
+  console.log("[HomePage] Current selectedPair state:", selectedPair);
 
   return (
     <div className="flex flex-col items-center">
@@ -49,38 +53,45 @@ export default function HomePage() {
         </div>
 
         {/* Pool Operations */}
-        {selectedPair && (
-          <div className="mt-8">
-            {/* Token Approvals */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-8">
-              <h2 className="text-2xl font-bold mb-4">Token Approvals</h2>
-              <p className="mb-4">Please approve the router to spend your tokens.</p>
-              <div className="flex gap-4 flex-wrap">
-                <ApproveToken tokenAddress={tokenA} label="Approve Token A" />
-                <ApproveToken tokenAddress={tokenB} label="Approve Token B" />
+        {(() => {
+            console.log(`[HomePage] Rendering Pool Operations section. selectedPair: ${selectedPair}`);
+            return selectedPair && (
+              <div className="mt-8">
+                {/* Token Approvals */}
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-8">
+                  <h2 className="text-2xl font-bold mb-4">Token Approvals</h2>
+                  <p className="mb-4">Please approve the router to spend your tokens.</p>
+                  <div className="flex gap-4 flex-wrap">
+                    <ApproveToken tokenAddress={tokenA} label="Approve Token A" />
+                    <ApproveToken tokenAddress={tokenB} label="Approve Token B" />
+                  </div>
+                </div>
+
+                {/* Pool Operations */}
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-8">
+                  <h2 className="text-2xl font-bold mb-4">Pool Operations</h2>
+                  <AddLiquidity
+                    routerAddress={process.env.NEXT_PUBLIC_UNISWAPV2_ROUTER02_ADDRESS as EthAddress}
+                    tokenA={tokenA}
+                    tokenB={tokenB}
+                  />
+                  <RemoveLiquidity 
+                    pairAddress={selectedPair as EthAddress} 
+                    tokenA={tokenA} 
+                    tokenB={tokenB} 
+                  />
+                  <Swap tokenIn={tokenA} tokenOut={tokenB} />
+                </div>
+
+                {/* Pool Analytics */}
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                  <h2 className="text-2xl font-bold mb-4">Pool Analytics</h2>
+                  <PoolAnalytics pairAddress={selectedPair as EthAddress} />
+                  <SwapPriceDistribution pairAddress={selectedPair as EthAddress} />
+                </div>
               </div>
-            </div>
-
-            {/* Pool Operations */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-8">
-              <h2 className="text-2xl font-bold mb-4">Pool Operations</h2>
-              <AddLiquidity
-                routerAddress={process.env.NEXT_PUBLIC_UNISWAPV2_ROUTER02_ADDRESS as EthAddress}
-                tokenA={tokenA}
-                tokenB={tokenB}
-              />
-              <RemoveLiquidity tokenA={tokenA} tokenB={tokenB} />
-              <Swap tokenIn={tokenA} tokenOut={tokenB} />
-            </div>
-
-            {/* Pool Analytics */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-              <h2 className="text-2xl font-bold mb-4">Pool Analytics</h2>
-              <PoolAnalytics pairAddress={selectedPair as EthAddress} />
-              <SwapPriceDistribution pairAddress={selectedPair as EthAddress} />
-            </div>
-          </div>
-        )}
+            );
+        })()}
       </div>
     </div>
   );
