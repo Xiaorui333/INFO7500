@@ -7,13 +7,15 @@ import {
   Chart as ChartJS,
   CategoryScale,
   LinearScale,
+  LogarithmicScale,
   PointElement,
   LineElement,
+  ScatterController,
   Tooltip,
   Legend,
 } from "chart.js";
 
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend);
+ChartJS.register(CategoryScale, LinearScale, LogarithmicScale, PointElement, LineElement, ScatterController, Tooltip, Legend);
 
 interface PoolAnalyticsProps {
   pairAddress: `0x${string}`;
@@ -86,21 +88,28 @@ export function PoolAnalytics({ pairAddress, token0Symbol = "Token0", token1Symb
           data: curvePoints,
           showLine: true,
           borderColor: "#4e79a7",
-          pointRadius: 0, // Hide points on the curve
+          backgroundColor: "rgba(78, 121, 167, 0.1)",
+          fill: false,
+          tension: 0.3,
+          pointRadius: 0,
+          borderWidth: 2,
         },
         {
           label: "Movement Trajectory",
           data: trajectoryLine,
           showLine: true,
           borderColor: "#95a5a6",
-          borderDash: [5, 5], // Dotted line
+          borderDash: [5, 5],
           pointRadius: 0,
+          borderWidth: 1.5,
         },
         {
           label: "Current Point (P)",
           data: [currentPoint],
-          pointRadius: 8,
+          pointRadius: 6,
           pointBackgroundColor: "#e74c3c",
+          pointBorderColor: "white",
+          pointBorderWidth: 1.5,
           showLine: false,
         },
       ],
@@ -119,6 +128,9 @@ export function PoolAnalytics({ pairAddress, token0Symbol = "Token0", token1Symb
   const currentCurve = previousCurveRef.current;
   const previousCurve = previousCurveRef.current;
   const formatNumber = (num: number) => {
+    if (num > 1_000_000_000_000) {
+      return num.toExponential(2);
+    }
     return num.toLocaleString(undefined, {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
@@ -126,32 +138,50 @@ export function PoolAnalytics({ pairAddress, token0Symbol = "Token0", token1Symb
   };
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-2">
-        <p className="text-sm text-gray-500">Equation: x * y = k</p>
-        {currentPoint && (
-          <div className="flex flex-col gap-1">
-            <p className="text-sm font-medium">Current reserves:</p>
-            <div className="flex flex-col gap-1 pl-4">
-              <p className="text-sm">
-                {token0Symbol}: <span className="font-mono">{formatNumber(currentPoint.x)}</span>
-              </p>
-              <p className="text-sm">
-                {token1Symbol}: <span className="font-mono">{formatNumber(currentPoint.y)}</span>
-              </p>
-            </div>
-            {previousCurve && currentCurve && (
-              <p className="text-sm text-gray-500 mt-2">
-                k changed from <span className="font-mono">{formatNumber(previousCurve.k)}</span> to{" "}
-                <span className="font-mono">{formatNumber(currentCurve.k)}</span>
-              </p>
-            )}
+    <div className="flex flex-col gap-3 bg-base-100 rounded-lg">
+      {/* Equation and Reserves Section */}
+      <div className="flex flex-col gap-3 pb-3">
+        <div className="flex flex-col">
+          <div className="flex items-center mb-2">
+            <span className="text-sm font-medium mr-2">Constant Product Equation:</span>
+            <span className="text-sm font-normal">x * y = k</span>
           </div>
-        )}
+          
+          {currentPoint && (
+            <>
+              <h4 className="text-sm font-medium mb-2">Current Reserves:</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-3">
+                <div className="flex flex-col p-2 bg-base-200 rounded">
+                  <span className="text-xs text-base-content/70">{token0Symbol}:</span>
+                  <span className="font-mono text-xs">{formatNumber(currentPoint.x)}</span>
+                </div>
+                <div className="flex flex-col p-2 bg-base-200 rounded">
+                  <span className="text-xs text-base-content/70">{token1Symbol}:</span>
+                  <span className="font-mono text-xs">{formatNumber(currentPoint.y)}</span>
+                </div>
+              </div>
+              
+              {previousCurve && currentCurve && (
+                <div className="mt-1 p-2 bg-base-200 rounded">
+                  <p className="text-xs">
+                    <span className="font-medium">k value:</span> {formatNumber(currentCurve.k)}
+                    {previousCurve.k !== currentCurve.k && (
+                      <span className="text-xs ml-2 opacity-70">
+                        (changed from {formatNumber(previousCurve.k)})
+                      </span>
+                    )}
+                  </p>
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
-      <div className="w-full h-[400px]">
+      
+      {/* Chart Section */}
+      <div className="w-full h-[350px]">
         <Chart
-          type="scatter"
+          type="line"
           data={chartData}
           options={{
             responsive: true,
@@ -159,17 +189,51 @@ export function PoolAnalytics({ pairAddress, token0Symbol = "Token0", token1Symb
             scales: {
               x: {
                 type: "linear",
-                title: { display: true, text: `${token0Symbol} Reserves` },
+                title: { 
+                  display: true,
+                  text: `${token0Symbol} Reserves`,
+                  font: {
+                    size: 11
+                  }
+                },
                 min: 0,
               },
               y: {
                 type: "linear",
-                title: { display: true, text: `${token1Symbol} Reserves` },
+                title: { 
+                  display: true,
+                  text: `${token1Symbol} Reserves`,
+                  font: {
+                    size: 11
+                  }
+                },
                 min: 0,
               },
             },
+            elements: {
+              line: {
+                tension: 0.3
+              }
+            },
             plugins: {
+              legend: {
+                position: 'top',
+                labels: {
+                  boxWidth: 12,
+                  padding: 10,
+                  font: {
+                    size: 10
+                  }
+                }
+              },
               tooltip: {
+                backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                titleColor: '#fff',
+                bodyColor: '#fff',
+                padding: 6,
+                bodyFont: {
+                  size: 11
+                },
                 callbacks: {
                   label: function(context) {
                     const point = context.raw as Point;
