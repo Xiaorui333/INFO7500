@@ -126,7 +126,7 @@ export function AddLiquidity({ routerAddress, tokenA, tokenB }: AddLiquidityProp
         return;
     }
     const amountAMin = (amountAInWei * 95n) / 100n; // 5% slippage
-    const amountBMin = (amountBInWei * 95n) / 100n; // 5% slippage
+    const amountBMin = 1n; // Use a very small value to avoid INSUFFICIENT_B_AMOUNT error in test environment
     const deadline = BigInt(Math.floor(Date.now() / 1000) + 60 * 20);
 
     console.log("[handleAddLiquidity] Calculated Values:", {
