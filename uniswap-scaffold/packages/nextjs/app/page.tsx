@@ -46,6 +46,8 @@ export default function HomePage() {
   return (
     <div className="flex flex-col items-center">
       <div className="w-full max-w-4xl">
+        <h1 className="text-4xl font-bold mb-8">Uniswap V2 Scaffold</h1>
+
         {/* Pool Selection */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-8">
           <h2 className="text-2xl font-bold mb-4">Select Pool</h2>

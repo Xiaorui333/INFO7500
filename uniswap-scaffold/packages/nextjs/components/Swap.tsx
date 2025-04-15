@@ -10,14 +10,23 @@ interface SwapProps {
   tokenOut: `0x${string}`;
   decimalsIn?: number;
   decimalsOut?: number;
+  initialAmount?: string;
+  initialSwapMode?: SwapMode;
 }
 
 type SwapMode = "exactIn" | "exactOut";
 
-export function Swap({ tokenIn, tokenOut, decimalsIn = 18, decimalsOut = 18 }: SwapProps) {
-  const [inputAmount, setInputAmount] = useState("");
-  const [outputAmount, setOutputAmount] = useState("");
-  const [swapMode, setSwapMode] = useState<SwapMode>("exactIn");
+export function Swap({ 
+  tokenIn, 
+  tokenOut, 
+  decimalsIn = 18, 
+  decimalsOut = 18,
+  initialAmount = "",
+  initialSwapMode = "exactIn"
+}: SwapProps) {
+  const [inputAmount, setInputAmount] = useState(initialSwapMode === "exactIn" ? initialAmount : "");
+  const [outputAmount, setOutputAmount] = useState(initialSwapMode === "exactOut" ? initialAmount : "");
+  const [swapMode, setSwapMode] = useState<SwapMode>(initialSwapMode);
   const { address: userAddress } = useAccount();
   const [loading, setLoading] = useState(false);
   const publicClient = usePublicClient();
@@ -121,7 +130,7 @@ export function Swap({ tokenIn, tokenOut, decimalsIn = 18, decimalsOut = 18 }: S
             amountInWei,
             0n,                // amountOutMin
             [tokenIn, tokenOut],
-            userAddress,       // recipient
+            userAddress,
             deadline,
           ],
         });
