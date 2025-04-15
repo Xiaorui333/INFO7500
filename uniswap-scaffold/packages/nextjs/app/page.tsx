@@ -72,6 +72,7 @@ export default function HomePage() {
                 {/* Pool Operations */}
                 <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-8">
                   <h2 className="text-2xl font-bold mb-4">Pool Operations</h2>
+                  
                   <AddLiquidity
                     routerAddress={process.env.NEXT_PUBLIC_UNISWAPV2_ROUTER02_ADDRESS as EthAddress}
                     tokenA={tokenA}

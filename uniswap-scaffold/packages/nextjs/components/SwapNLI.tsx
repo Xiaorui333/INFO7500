@@ -16,6 +16,7 @@ export function SwapNLI({ routerAddress, tokenA, tokenB }: SwapNLIProps) {
   const [result, setResult] = useState("");
   const [swapAmount, setSwapAmount] = useState("");
   const [swapMode, setSwapMode] = useState<"exactIn" | "exactOut">("exactIn");
+  const [showSwap, setShowSwap] = useState(false);
   const { status: accountStatus } = useAccount();
   const isConnected = accountStatus === 'connected';
 
@@ -82,13 +83,16 @@ export function SwapNLI({ routerAddress, tokenA, tokenB }: SwapNLIProps) {
         setSwapMode(params.isExactIn ? "exactIn" : "exactOut");
         setSwapAmount(amount.toString());
         setResult("Swap parameters set. You can proceed with the swap.");
+        setShowSwap(true); // Show the Swap component after successful parsing
       } catch (parseError) {
         console.error("Failed to parse OpenAI response:", parseError);
         setResult("Failed to parse the instruction. Please try again with a clearer instruction.");
+        setShowSwap(false); // Hide the Swap component on error
       }
     } catch (err: unknown) {
       console.error("SwapNLI process failed:", err);
       setResult(`Error: ${err instanceof Error ? err.message : err}`);
+      setShowSwap(false); // Hide the Swap component on error
     }
   }
 
@@ -125,16 +129,18 @@ export function SwapNLI({ routerAddress, tokenA, tokenB }: SwapNLIProps) {
 
       {result && <p style={{ marginTop: "1rem", marginBottom: "1rem" }}>{result}</p>}
 
-      <div style={{ marginTop: "1rem" }}>
-        <h4>Swap Operation</h4>
-        <Swap 
-          key={`${swapAmount}-${swapMode}`}
-          tokenIn={tokenA} 
-          tokenOut={tokenB}
-          initialAmount={swapAmount}
-          initialSwapMode={swapMode}
-        />
-      </div>
+      {showSwap && (
+        <div style={{ marginTop: "1rem" }}>
+          <h4>Swap Operation</h4>
+          <Swap 
+            key={`${swapAmount}-${swapMode}`}
+            tokenIn={tokenA} 
+            tokenOut={tokenB}
+            initialAmount={swapAmount}
+            initialSwapMode={swapMode}
+          />
+        </div>
+      )}
     </div>
   );
 } 

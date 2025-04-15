@@ -58,18 +58,23 @@ async function ensureLpAllowance({
 }
 
 interface RemoveLiquidityProps {
-
   tokenA: `0x${string}`;
   tokenB: `0x${string}`;
   pairAddress: `0x${string}`;
+  initialLpTokens?: string;
 }
 
-export function RemoveLiquidity({ tokenA, tokenB, pairAddress }: RemoveLiquidityProps) {
+export function RemoveLiquidity({ 
+  tokenA, 
+  tokenB, 
+  pairAddress, 
+  initialLpTokens = "" 
+}: RemoveLiquidityProps) {
   const { address: userAddress } = useAccount();
   const publicClient = usePublicClient();
 
   // LP 数量（输入框）
-  const [lpTokens, setLpTokens] = useState("");
+  const [lpTokens, setLpTokens] = useState(initialLpTokens);
   // 发送交易用的 Hooks
   const { writeContractAsync, isPending, error } = useWriteContract();
 

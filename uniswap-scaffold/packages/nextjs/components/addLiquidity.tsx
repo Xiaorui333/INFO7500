@@ -74,11 +74,19 @@ interface AddLiquidityProps {
   routerAddress: `0x${string}`;
   tokenA: `0x${string}`;
   tokenB: `0x${string}`;
+  initialAmountA?: string;
+  initialAmountB?: string;
 }
 
-export function AddLiquidity({ routerAddress, tokenA, tokenB }: AddLiquidityProps) {
-  const [amountA, setAmountA] = useState("");
-  const [amountB, setAmountB] = useState("");
+export function AddLiquidity({ 
+  routerAddress, 
+  tokenA, 
+  tokenB, 
+  initialAmountA = "", 
+  initialAmountB = "" 
+}: AddLiquidityProps) {
+  const [amountA, setAmountA] = useState(initialAmountA);
+  const [amountB, setAmountB] = useState(initialAmountB);
   const { address: userAddress, status: accountStatus } = useAccount();
   const publicClient = usePublicClient();
   const { writeContractAsync, isPending, error: writeError } = useWriteContract();
