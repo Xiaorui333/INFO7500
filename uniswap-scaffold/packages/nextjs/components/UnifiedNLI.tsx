@@ -19,6 +19,70 @@ type OperationType = "swap" | "add" | "remove" | "analysis" | "contractOp" | "da
 type AnalysisType = "pool" | "price" | "custom" | null;
 type DisplayMode = "chart" | "text" | null;
 
+const functions = [
+  {
+    name: "performContractOp",
+    description: "User wants to perform a contract operation like swap, add liquidity, or remove liquidity.",
+    parameters: {
+      type: "object",
+      properties: {
+        contractOpType: { 
+          type: "string", 
+          enum: ["swap", "add", "remove"],
+          description: "The type of contract operation to perform"
+        },
+        amountA: { 
+          type: "string", 
+          description: "Amount of token A (for swap or add liquidity)" 
+        },
+        amountB: { 
+          type: "string", 
+          description: "Amount of token B (for add liquidity)" 
+        },
+        lpTokens: { 
+          type: "string", 
+          description: "Amount of LP tokens (for remove liquidity)" 
+        }
+      },
+      required: ["contractOpType"]
+    }
+  },
+  {
+    name: "performStandardAnalysis",
+    description: "User wants to perform a standard analysis like pool analytics or swap price distribution.",
+    parameters: {
+      type: "object",
+      properties: {
+        analysisType: { 
+          type: "string", 
+          enum: ["pool", "price"],
+          description: "The type of analysis to perform"
+        },
+        displayMode: { 
+          type: "string", 
+          enum: ["chart", "text"],
+          description: "How to display the analysis results" 
+        }
+      },
+      required: ["analysisType", "displayMode"]
+    }
+  },
+  {
+    name: "customDataAnalysis",
+    description: "User requests a custom data analysis on uniswap_events. Return a valid SELECT query in sqlQuery.",
+    parameters: {
+      type: "object",
+      properties: {
+        sqlQuery: { 
+          type: "string",
+          description: "A valid SQL SELECT query to analyze the data. The query should return multiple rows and columns that will be aggregated into JSON." 
+        }
+      },
+      required: ["sqlQuery"]
+    }
+  }
+];
+
 export function UnifiedNLI({ routerAddress, tokenA, tokenB, pairAddress }: UnifiedNLIProps) {
   const [instruction, setInstruction] = useState("");
   const [apiKey, setApiKey] = useState("");
@@ -65,80 +129,6 @@ export function UnifiedNLI({ routerAddress, tokenA, tokenB, pairAddress }: Unifi
     setIsLoading(true);
 
     try {
-      // Define functions for OpenAI Function Calling
-      const functions = [
-        {
-          type: "function",
-          function: {
-            name: "performContractOp",
-            description: "User wants to perform a contract operation like swap, add liquidity, or remove liquidity.",
-            parameters: {
-              type: "object",
-              properties: {
-                contractOpType: { 
-                  type: "string", 
-                  enum: ["swap", "add", "remove"],
-                  description: "The type of contract operation to perform"
-                },
-                amountA: { 
-                  type: "string", 
-                  description: "Amount of token A (for swap or add liquidity)" 
-                },
-                amountB: { 
-                  type: "string", 
-                  description: "Amount of token B (for add liquidity)" 
-                },
-                lpTokens: { 
-                  type: "string", 
-                  description: "Amount of LP tokens (for remove liquidity)" 
-                }
-              },
-              required: ["contractOpType"]
-            }
-          }
-        },
-        {
-          type: "function",
-          function: {
-            name: "performStandardAnalysis",
-            description: "User wants to perform a standard analysis like pool analytics or swap price distribution.",
-            parameters: {
-              type: "object",
-              properties: {
-                analysisType: { 
-                  type: "string", 
-                  enum: ["pool", "price"],
-                  description: "The type of analysis to perform"
-                },
-                displayMode: { 
-                  type: "string", 
-                  enum: ["chart", "text"],
-                  description: "How to display the analysis results" 
-                }
-              },
-              required: ["analysisType", "displayMode"]
-            }
-          }
-        },
-        {
-          type: "function",
-          function: {
-            name: "customDataAnalysis",
-            description: "User requests a custom data analysis on uniswap_events. Return a valid SELECT query in sqlQuery.",
-            parameters: {
-              type: "object",
-              properties: {
-                sqlQuery: { 
-                  type: "string",
-                  description: "A valid SQL SELECT query to analyze the data. The query should return multiple rows and columns that will be aggregated into JSON." 
-                }
-              },
-              required: ["sqlQuery"]
-            }
-          }
-        }
-      ];
-
       // Call OpenAI API with Function Calling
       const response = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
@@ -165,6 +155,46 @@ export function UnifiedNLI({ routerAddress, tokenA, tokenB, pairAddress }: Unifi
               4. Include ORDER BY clauses to sort results logically
               5. Limit results to a reasonable number (e.g., LIMIT 100)
               
+              The uniswap_events table has the following columns:
+              - id: bigint (primary key)
+              - block_number: bigint
+              - transaction_hash: text
+              - event_name: text (case‑sensitive, must be one of: 'Swap', 'Mint', 'Burn', 'Sync')
+              - pair_address: text (the Uniswap V2 pair contract address that emitted the event)
+              - token0_address: text (ERC‑20 address of token0 in that pair)
+              - token1_address: text (ERC‑20 address of token1 in that pair)
+              - timestamp: timestamp without time zone (stored in UTC)
+              - data_json: jsonb (the full event arguments as JSON)
+              - created_at: timestamp without time zone
+
+              ⚠️ Do NOT reference columns that do not exist (e.g., amount0in, liquidity_a).  
+              📘 To extract values from data_json, use JSON operators and cast to numeric, for example:
+                (data_json->>'amount0')::numeric  
+                (data_json->>'amount1Out')::numeric
+
+              🕒 Time‑based filters examples:
+                WHERE timestamp >= NOW() - INTERVAL '24 hours'
+                WHERE timestamp BETWEEN '2024-04-01' AND '2024-04-16'
+
+              🔍 Example SQL snippets (no trailing semicolons):
+              1. Count Swap events today:
+                SELECT COUNT(*) AS count
+                FROM uniswap_events
+                WHERE event_name = 'Swap'
+                  AND timestamp >= CURRENT_DATE
+
+              2. Average liquidity per Mint event:
+                SELECT AVG((data_json->>'amount0')::numeric + (data_json->>'amount1')::numeric) AS avg_liquidity
+                FROM uniswap_events
+                WHERE event_name = 'Mint'
+
+              3. Top 5 active pairs last 24h:
+                SELECT pair_address, COUNT(*) AS event_count
+                FROM uniswap_events
+                WHERE timestamp >= NOW() - INTERVAL '1 day'
+                GROUP BY pair_address
+                ORDER BY event_count DESC
+                LIMIT 5
               Make sure all amounts are valid numbers that can be parsed by JavaScript's parseFloat function.`,
             },
             {
@@ -172,8 +202,8 @@ export function UnifiedNLI({ routerAddress, tokenA, tokenB, pairAddress }: Unifi
               content: instruction,
             },
           ],
-          tools: functions,
-          tool_choice: "auto"
+          functions: functions,
+          function_call: "auto"
         }),
       });
 
@@ -181,14 +211,16 @@ export function UnifiedNLI({ routerAddress, tokenA, tokenB, pairAddress }: Unifi
       console.log("OpenAI response:", data);
 
       // Check if the response contains a function call
-      if (data.choices[0].message.tool_calls) {
-        const toolCall = data.choices[0].message.tool_calls[0];
-        console.log("Function call:", toolCall);
+      const fnCall = data.choices[0].message.function_call;
+      if (!fnCall) {
+        setResult("I couldn't understand your instruction. Please try again.");
+        return;
+      } else {
+        const { name, arguments: argStr } = fnCall;
+        const args = JSON.parse(argStr);
+        console.log("Function call:", name, args);
         
-        // Parse the function arguments
-        const args = JSON.parse(toolCall.function.arguments);
-        
-        if (toolCall.function.name === "performContractOp") {
+        if (name === "performContractOp") {
           // Handle contract operation
           setOperationType("contractOp");
           
@@ -234,7 +266,7 @@ export function UnifiedNLI({ routerAddress, tokenA, tokenB, pairAddress }: Unifi
             setResult("Remove liquidity parameters set. You can proceed with removing liquidity.");
             setShowComponent(true); // Show the remove liquidity component
           }
-        } else if (toolCall.function.name === "performStandardAnalysis") {
+        } else if (name === "performStandardAnalysis") {
           // Handle standard analysis
           setOperationType("dataAnalysis");
           setAnalysisType(args.analysisType);
@@ -246,7 +278,7 @@ export function UnifiedNLI({ routerAddress, tokenA, tokenB, pairAddress }: Unifi
             setResult("Swap price distribution parameters set. You can view the swap price distribution.");
           }
           setShowComponent(true); // Show the analysis component
-        } else if (toolCall.function.name === "customDataAnalysis") {
+        } else if (name === "customDataAnalysis") {
           // Handle custom analysis
           setOperationType("dataAnalysis");
           setAnalysisType("custom");
@@ -318,10 +350,6 @@ export function UnifiedNLI({ routerAddress, tokenA, tokenB, pairAddress }: Unifi
             setCustomAnalysisData(null);
           }
         }
-      } else {
-        // No function call, just a regular response
-        console.log("No function call, regular response:", data.choices[0].message.content);
-        setResult("I couldn't understand your instruction. Please try again with a clearer instruction.");
       }
     } catch (err: unknown) {
       console.error("UnifiedNLI process failed:", err);
