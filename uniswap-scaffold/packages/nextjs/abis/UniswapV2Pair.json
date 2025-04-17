@@ -126,6 +126,18 @@
           "internalType": "address",
           "name": "to",
           "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "reserve0",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "reserve1",
+          "type": "uint256"
         }
       ]
     },

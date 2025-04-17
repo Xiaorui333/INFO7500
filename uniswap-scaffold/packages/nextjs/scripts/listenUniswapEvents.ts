@@ -66,24 +66,35 @@ function bigintReplacer(key: string, value: any) {
 
 async function handleEvent(event: Log, eventName: string, pairAddress: string) {
   try {
+    console.log(`🔍 Processing ${eventName} event from ${pairAddress} at block ${event.blockNumber}`);
+    
     const blockNumber = event.blockNumber;
-    if (!blockNumber) return; // 忽略没有 blockNumber 的事件
+    if (!blockNumber) {
+      console.log(`⚠️ Skipping event: No block number`);
+      return; // 忽略没有 blockNumber 的事件
+    }
 
     const block = await publicClient.getBlock({ blockNumber });
-    if (!block || block.timestamp === null) throw new Error('Failed to fetch block or missing timestamp');
+    if (!block || block.timestamp === null) {
+      console.log(`⚠️ Skipping event: Failed to fetch block or missing timestamp`);
+      throw new Error('Failed to fetch block or missing timestamp');
+    }
 
     const timestamp = block.timestamp as bigint;
-
+    
+    console.log(`📝 Decoding event data...`);
     const decoded = decodeEventLog({
       abi: PAIR_ABI,
       data: event.data,
       topics: event.topics,
     });
+    console.log(`✅ Event decoded successfully:`, JSON.stringify(decoded, bigintReplacer, 2));
 
     const meta = pairMetadata[pairAddress] || { token0: null, token1: null };
 
     // 把 decoded.args 里的 BigInt 转成 string
     const decodedArgsStringified = JSON.parse(JSON.stringify(decoded.args, bigintReplacer));
+    console.log(`🔄 Processed args:`, JSON.stringify(decodedArgsStringified, null, 2));
 
     const rec = {
       block_number: Number(event.blockNumber),
@@ -96,6 +107,7 @@ async function handleEvent(event: Log, eventName: string, pairAddress: string) {
       data_json: decodedArgsStringified,
     };
 
+    console.log(`💾 Inserting event data into database...`);
     const { error } = await supabase.from('uniswap_events').insert([rec]);
     if (error) {
       console.error(`❌ supabase insert error for ${eventName}@${pairAddress}:`, error);
@@ -104,6 +116,11 @@ async function handleEvent(event: Log, eventName: string, pairAddress: string) {
     }
   } catch (err) {
     console.error(`❌ handleEvent error for ${eventName}@${pairAddress}:`, err);
+    // 添加更详细的错误信息
+    if (err instanceof Error) {
+      console.error(`Error details: ${err.message}`);
+      console.error(`Error stack: ${err.stack}`);
+    }
   }
 }
 

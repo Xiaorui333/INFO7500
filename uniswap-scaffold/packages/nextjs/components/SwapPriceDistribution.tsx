@@ -11,82 +11,20 @@ import {
   Tooltip,
   Legend,
   ChartOptions,
+  Title,
 } from "chart.js";
+import UniswapV2PairABI from "../abis/UniswapV2Pair.json";
 
-// 注册 Chart.js 组件
-ChartJS.register(CategoryScale, LinearScale, BarElement, BarController, Tooltip, Legend);
-
-// 自定义Pair ABI，匹配包含reserve0和reserve1的Swap事件
-const CUSTOM_PAIR_ABI = [
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "sender",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "amount0In",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "amount1In",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "amount0Out",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "amount1Out",
-        "type": "uint256"
-      },
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "to",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "reserve0",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "reserve1",
-        "type": "uint256"
-      }
-    ],
-    "name": "Swap",
-    "type": "event"
-  },
-  {
-    "inputs": [],
-    "name": "token0",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  }
-];
+// Register Chart.js components
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  BarController,
+  Tooltip,
+  Legend,
+  Title
+);
 
 interface SwapPriceDistributionProps {
   pairAddress: `0x${string}`;
@@ -97,14 +35,14 @@ interface SwapPriceDistributionProps {
  * 如果 token0In & token1Out > 0，则 price = token1Out / token0In
  * 如果 token1In & token0Out > 0，则 price = token0Out / token1In
  */
-function computeSwapPrice(args: {
+const computeSwapPrice = (args: {
   amount0In: bigint;
   amount1In: bigint;
   amount0Out: bigint;
   amount1Out: bigint;
-  reserve0?: bigint;
-  reserve1?: bigint;
-}): number {
+  reserve0: bigint;
+  reserve1: bigint;
+}) => {
   const amount0In = Number(args.amount0In);
   const amount1In = Number(args.amount1In);
   const amount0Out = Number(args.amount0Out);
@@ -117,7 +55,7 @@ function computeSwapPrice(args: {
     return amount0Out / amount1In;
   }
   return 0;
-}
+};
 
 export function SwapPriceDistribution({ pairAddress }: SwapPriceDistributionProps) {
   const [swapPrices, setSwapPrices] = useState<number[]>([]);
@@ -139,7 +77,7 @@ export function SwapPriceDistribution({ pairAddress }: SwapPriceDistributionProp
     
     try {
       console.log(`Fetching past swap events for pair: ${pairAddress} on chain ${publicClient.chain?.name || 'unknown'}`);
-      console.log("Using custom ABI with reserve0/reserve1 in Swap event");
+      console.log("Using UniswapV2Pair ABI");
       
       // 检查合约是否存在
       try {
@@ -158,7 +96,7 @@ export function SwapPriceDistribution({ pairAddress }: SwapPriceDistributionProp
       try {
         const token0 = await publicClient.readContract({
           address: pairAddress,
-          abi: CUSTOM_PAIR_ABI,
+          abi: UniswapV2PairABI.abi,
           functionName: 'token0',
         });
         console.log("Contract verification - token0:", token0);
@@ -166,10 +104,10 @@ export function SwapPriceDistribution({ pairAddress }: SwapPriceDistributionProp
         console.error("Error verifying contract interface:", readError);
       }
       
-      console.log("Creating event filter for Swap events with custom ABI...");
+      console.log("Creating event filter for Swap events with UniswapV2Pair ABI...");
       const filter = await publicClient.createContractEventFilter({
         address: pairAddress,
-        abi: CUSTOM_PAIR_ABI,
+        abi: UniswapV2PairABI.abi,
         eventName: 'Swap',
         fromBlock: BigInt(0), // 从创世区块开始
       });
@@ -243,14 +181,14 @@ export function SwapPriceDistribution({ pairAddress }: SwapPriceDistributionProp
     fetchPastSwapEvents();
   }, [pairAddress, publicClient]);
 
-  // 同时监听新的Swap事件，使用自定义ABI
+  // 同时监听新的Swap事件，使用UniswapV2Pair ABI
   useWatchContractEvent({
     address: pairAddress,
-    abi: CUSTOM_PAIR_ABI,
+    abi: UniswapV2PairABI.abi,
     eventName: "Swap",
     onLogs: (logs) => {
       console.log(`Live Swap event detected! ${logs.length} logs received`);
-      logs.forEach((log) => {
+      logs.forEach((log: any) => {
         console.log("Log details:", {
           blockNumber: log.blockNumber,
           transactionHash: log.transactionHash,
