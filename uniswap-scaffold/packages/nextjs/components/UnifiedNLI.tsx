@@ -1,3 +1,4 @@
+// UnifiedNLI.tsx
 "use client";
 import React, { useState } from "react";
 import { useAccount } from "wagmi";
@@ -6,7 +7,6 @@ import { AddLiquidity } from "~~/components/addLiquidity";
 import { RemoveLiquidity } from "~~/components/removeLiquidity";
 import { PoolAnalytics } from "~~/components/PoolAnalytics";
 import { SwapPriceDistribution } from "~~/components/SwapPriceDistribution";
-import { parseUnits } from "viem";
 
 interface UnifiedNLIProps {
   routerAddress: `0x${string}`;
@@ -15,514 +15,286 @@ interface UnifiedNLIProps {
   pairAddress: `0x${string}`;
 }
 
-type OperationType = "swap" | "add" | "remove" | "analysis" | "contractOp" | "dataAnalysis" | null;
-type AnalysisType = "pool" | "price" | "custom" | null;
-type DisplayMode = "chart" | "text" | null;
-
-const functions = [
-  {
-    name: "performContractOp",
-    description: "User wants to perform a contract operation like swap, add liquidity, or remove liquidity.",
-    parameters: {
-      type: "object",
-      properties: {
-        contractOpType: { 
-          type: "string", 
-          enum: ["swap", "add", "remove"],
-          description: "The type of contract operation to perform"
-        },
-        amountA: { 
-          type: "string", 
-          description: "Amount of token A (for swap or add liquidity)" 
-        },
-        amountB: { 
-          type: "string", 
-          description: "Amount of token B (for add liquidity)" 
-        },
-        lpTokens: { 
-          type: "string", 
-          description: "Amount of LP tokens (for remove liquidity)" 
-        }
-      },
-      required: ["contractOpType"]
-    }
-  },
-  {
-    name: "performStandardAnalysis",
-    description: "User wants to perform a standard analysis like pool analytics or swap price distribution.",
-    parameters: {
-      type: "object",
-      properties: {
-        analysisType: { 
-          type: "string", 
-          enum: ["pool", "price"],
-          description: "The type of analysis to perform"
-        },
-        displayMode: { 
-          type: "string", 
-          enum: ["chart", "text"],
-          description: "How to display the analysis results" 
-        }
-      },
-      required: ["analysisType", "displayMode"]
-    }
-  },
-  {
-    name: "customDataAnalysis",
-    description: "User requests a custom data analysis on uniswap_events. Return a valid SELECT query in sqlQuery.",
-    parameters: {
-      type: "object",
-      properties: {
-        sqlQuery: { 
-          type: "string",
-          description: "A valid SQL SELECT query to analyze the data. The query should return multiple rows and columns that will be aggregated into JSON." 
-        }
-      },
-      required: ["sqlQuery"]
-    }
-  }
-];
-
 export function UnifiedNLI({ routerAddress, tokenA, tokenB, pairAddress }: UnifiedNLIProps) {
-  const [instruction, setInstruction] = useState("");
-  const [apiKey, setApiKey] = useState("");
-  const [result, setResult] = useState("");
-  const [amountA, setAmountA] = useState("");
-  const [amountB, setAmountB] = useState("");
-  const [lpTokens, setLpTokens] = useState("");
-  const [operationType, setOperationType] = useState<OperationType>(null);
-  const [analysisType, setAnalysisType] = useState<AnalysisType>(null);
-  const [displayMode, setDisplayMode] = useState<DisplayMode>(null);
-  const [showComponent, setShowComponent] = useState(false);
-  const [customAnalysisResult, setCustomAnalysisResult] = useState<string | null>(null);
-  const [customAnalysisData, setCustomAnalysisData] = useState<Record<string, any>[] | null>(null);
-  const [sqlQuery, setSqlQuery] = useState<string | null>(null);
-  const [naturalResponse, setNaturalResponse] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [instruction, setInstruction] = useState<string>("");
+  const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<any>(null);
+  const [openAiQueryResults, setOpenAiQueryResults] = useState<any[]>([]);
+  const [openAiNaturalResponse, setOpenAiNaturalResponse] = useState<string | null>(null);
+  
+  const [customLlmResult, setCustomLlmResult] = useState<string | null>(null);
+  const [customLlmQueryResults, setCustomLlmQueryResults] = useState<any[]>([]);
+  const [customLlmNaturalResponse, setCustomLlmNaturalResponse] = useState<string | null>(null);
+
+  const [showSwap, setShowSwap] = useState<boolean>(false);
+  const [showAddLiquidity, setShowAddLiquidity] = useState<boolean>(false);
+  const [showRemoveLiquidity, setShowRemoveLiquidity] = useState<boolean>(false);
+  const [showPoolAnalytics, setShowPoolAnalytics] = useState<boolean>(false);
+  const [showSwapPriceDistribution, setShowSwapPriceDistribution] = useState<boolean>(false);
+  
+
   const { status: accountStatus } = useAccount();
   const isConnected = accountStatus === 'connected';
 
-  async function handleUnifiedNLI() {
-    if (!isConnected) {
-      setResult("Please connect your wallet.");
-      return;
-    }
-    if (!instruction) {
-      setResult("Please enter a natural language instruction.");
-      return;
-    }
-    if (!apiKey) {
-      setResult("Please enter your OpenAI API Key.");
+  const handleParseInstruction = async () => {
+    if (!instruction.trim()) {
+      setError('Please enter an instruction');
       return;
     }
 
-    // Reset states before parsing new instruction
-    setOperationType(null);
-    setAnalysisType(null);
-    setDisplayMode(null);
-    setShowComponent(false);
-    setCustomAnalysisResult(null);
-    setCustomAnalysisData(null);
-    setSqlQuery(null);
-    setNaturalResponse(null);
-    setResult("Processing your instruction...");
-    setIsLoading(true);
+    setIsProcessing(true);
+    setError(null);
+    // Reset OpenAI states
+    setResult(null);
+    setOpenAiQueryResults([]);
+    setOpenAiNaturalResponse(null);
+    // Reset Custom LLM states
+    setCustomLlmResult(null);
+    setCustomLlmQueryResults([]);
+    setCustomLlmNaturalResponse(null);
+    // Reset UI states
+    setShowSwap(false);
+    setShowAddLiquidity(false);
+    setShowRemoveLiquidity(false);
+    setShowPoolAnalytics(false);
+    setShowSwapPriceDistribution(false);
 
-    try {
-      // Call OpenAI API with Function Calling
-      const response = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: "gpt-3.5-turbo",
-          messages: [
-            {
-              role: "system",
-              content: `You are a helpful assistant that parses natural language instructions into structured parameters for Uniswap V2 operations.
-              You can determine if the user wants to perform a contract operation or a data analysis.
-              
-              For contract operations, call the performContractOp function.
-              For standard analysis (pool or price), call the performStandardAnalysis function.
-              For custom analysis queries, call the customDataAnalysis function with a valid SQL query.
-              
-              When generating SQL queries for custom analysis:
-              1. Use standard SQL syntax that works with PostgreSQL
-              2. Include appropriate WHERE clauses to filter data
-              3. Use aggregation functions like COUNT, SUM, AVG when appropriate
-              4. Include ORDER BY clauses to sort results logically
-              5. Limit results to a reasonable number (e.g., LIMIT 100)
-              
-              The uniswap_events table has the following columns:
-              - id: bigint (primary key)
-              - block_number: bigint
-              - transaction_hash: text
-              - event_name: text (case‑sensitive, must be one of: 'Swap', 'Mint', 'Burn', 'Sync')
-              - pair_address: text (the Uniswap V2 pair contract address that emitted the event)
-              - token0_address: text (ERC‑20 address of token0 in that pair)
-              - token1_address: text (ERC‑20 address of token1 in that pair)
-              - timestamp: timestamp without time zone (stored in UTC)
-              - data_json: jsonb (the full event arguments as JSON)
-              - created_at: timestamp without time zone
+    const [openaiRes, customRes] = await Promise.allSettled([
+      fetch('/api/openai-proxy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ instruction }),
+      }).then(r => r.json()),
+      fetch('/api/custom-llm-proxy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ instruction }),
+      }).then(r => r.json()),
+    ]);
+    console.log('[UnifiedNLI] openaiRes:', openaiRes);
+    console.log('[UnifiedNLI] customRes:', customRes);
 
-              ⚠️ Do NOT reference columns that do not exist (e.g., amount0in, liquidity_a).  
-              📘 To extract values from data_json, use JSON operators and cast to numeric, for example:
-                (data_json->>'amount0')::numeric  
-                (data_json->>'amount1Out')::numeric
-
-              🕒 Time‑based filters examples:
-                WHERE timestamp >= NOW() - INTERVAL '24 hours'
-                WHERE timestamp BETWEEN '2024-04-01' AND '2024-04-16'
-
-              🔍 Example SQL snippets (no trailing semicolons):
-              1. Count Swap events today:
-                SELECT COUNT(*) AS count
-                FROM uniswap_events
-                WHERE event_name = 'Swap'
-                  AND timestamp >= CURRENT_DATE
-
-              2. Average liquidity per Mint event:
-                SELECT AVG((data_json->>'amount0')::numeric + (data_json->>'amount1')::numeric) AS avg_liquidity
-                FROM uniswap_events
-                WHERE event_name = 'Mint'
-
-              3. Top 5 active pairs last 24h:
-                SELECT pair_address, COUNT(*) AS event_count
-                FROM uniswap_events
-                WHERE timestamp >= NOW() - INTERVAL '1 day'
-                GROUP BY pair_address
-                ORDER BY event_count DESC
-                LIMIT 5
-              Make sure all amounts are valid numbers that can be parsed by JavaScript's parseFloat function.`,
-            },
-            {
-              role: "user",
-              content: instruction,
-            },
-          ],
-          functions: functions,
-          function_call: "auto"
-        }),
-      });
-
-      const data = await response.json();
-      console.log("OpenAI response:", data);
-
-      // Check if the response contains a function call
-      const fnCall = data.choices[0].message.function_call;
-      if (!fnCall) {
-        setResult("I couldn't understand your instruction. Please try again.");
-        return;
+    // OpenAI result processing
+    if (openaiRes.status === 'fulfilled') {
+      const data = openaiRes.value;
+      if (data.error) {
+        setError(data.error);
       } else {
-        const { name, arguments: argStr } = fnCall;
-        const args = JSON.parse(argStr);
-        console.log("Function call:", name, args);
-        
-        if (name === "performContractOp") {
-          // Handle contract operation
-          setOperationType("contractOp");
+        setResult(data.result);
+        if (data.result?.function === 'customDataAnalysis') {
+          const sqlQuery = data.result.arguments.sqlQuery;
+          console.log('[UnifiedNLI] Executing OpenAI SQL query:', sqlQuery);
           
-          if (args.contractOpType === "swap") {
-            // Validate the amount for swap
-            const amountAValue = parseFloat(args.amountA);
-            
-            if (isNaN(amountAValue) || amountAValue <= 0) {
-              throw new Error("Invalid amountA: must be a positive number");
-            }
-            
-            // Set the amount
-            setAmountA(amountAValue.toString());
-            setResult("Swap parameters set. You can proceed with swapping.");
-            setShowComponent(true); // Show the swap component
-          } else if (args.contractOpType === "add") {
-            // Validate the amounts for add liquidity
-            const amountAValue = parseFloat(args.amountA);
-            const amountBValue = parseFloat(args.amountB);
-            
-            if (isNaN(amountAValue) || amountAValue <= 0) {
-              throw new Error("Invalid amountA: must be a positive number");
-            }
-            if (isNaN(amountBValue) || amountBValue <= 0) {
-              throw new Error("Invalid amountB: must be a positive number");
-            }
-            
-            // Set the amounts
-            setAmountA(amountAValue.toString());
-            setAmountB(amountBValue.toString());
-            setResult("Add liquidity parameters set. You can proceed with adding liquidity.");
-            setShowComponent(true); // Show the add liquidity component
-          } else if (args.contractOpType === "remove") {
-            // Validate the LP tokens for remove liquidity
-            const lpTokensValue = parseFloat(args.lpTokens);
-            
-            if (isNaN(lpTokensValue) || lpTokensValue <= 0) {
-              throw new Error("Invalid lpTokens: must be a positive number");
-            }
-            
-            // Set the LP tokens
-            setLpTokens(lpTokensValue.toString());
-            setResult("Remove liquidity parameters set. You can proceed with removing liquidity.");
-            setShowComponent(true); // Show the remove liquidity component
-          }
-        } else if (name === "performStandardAnalysis") {
-          // Handle standard analysis
-          setOperationType("dataAnalysis");
-          setAnalysisType(args.analysisType);
-          setDisplayMode(args.displayMode);
+          // Execute SQL query
+          const baseUrl = window.location.origin;
+          const sqlRes = await fetch(`${baseUrl}/api/execute-sql`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: sqlQuery }),
+          }).then(r => r.json());
           
-          if (args.analysisType === "pool") {
-            setResult("Pool analytics parameters set. You can view the pool analytics.");
+          if (sqlRes.error) {
+            setError(sqlRes.error);
           } else {
-            setResult("Swap price distribution parameters set. You can view the swap price distribution.");
-          }
-          setShowComponent(true); // Show the analysis component
-        } else if (name === "customDataAnalysis") {
-          // Handle custom analysis
-          setOperationType("dataAnalysis");
-          setAnalysisType("custom");
-          setSqlQuery(args.sqlQuery);
-          setCustomAnalysisResult("Processing your custom analysis query...");
-          setShowComponent(true);
-          
-          try {
-            // 调用 API 路由执行 SQL 查询
-            const sqlResponse = await fetch('/api/execute-sql', {
+            setOpenAiQueryResults(sqlRes.data);
+            
+            // Generate natural language response for OpenAI
+            const nlRes = await fetch(`${baseUrl}/api/openai-chat`, {
               method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({ query: args.sqlQuery }),
-            });
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ 
+                instruction: `Based on the following SQL query results, provide a clear and concise answer to the original question: "${instruction}"\n\nQuery results: ${JSON.stringify(sqlRes.data)}`
+              }),
+            }).then(r => r.json());
             
-            if (!sqlResponse.ok) {
-              const errorData = await sqlResponse.json();
-              throw new Error(`SQL query failed: ${errorData.error || 'Unknown error'}`);
+            if (nlRes.error) {
+              setError(nlRes.error);
+            } else {
+              setOpenAiNaturalResponse(nlRes.result);
             }
+          }
+        }
+        // Handle other operations...
+        if (data.operation) {
+          if (data.operation.type === 'swap') setShowSwap(true);
+          if (data.operation.type === 'addLiquidity') setShowAddLiquidity(true);
+          if (data.operation.type === 'removeLiquidity') setShowRemoveLiquidity(true);
+        }
+        if (data.result?.function === 'performStandardAnalysis') {
+          const { analysisType } = data.result.arguments;
+          if (analysisType === 'pool') setShowPoolAnalytics(true);
+          if (analysisType === 'price') setShowSwapPriceDistribution(true);
+        }
+      }
+    }
+
+    // Custom LLM result processing
+    if (customRes.status === 'fulfilled') {
+      const data = customRes.value;
+      if (data.error) {
+        setError(data.error);
+      } else {
+        setCustomLlmResult(data.result);
+        
+        // Extract SQL query from Custom LLM response
+        if (data.result && typeof data.result === 'string') {
+          const sqlMatch = data.result.match(/```sql\n([\s\S]*?)\n```/);
+          if (sqlMatch) {
+            const sqlQuery = sqlMatch[1].trim();
+            console.log('[UnifiedNLI] Executing Custom LLM SQL query:', sqlQuery);
             
-            const sqlData = await sqlResponse.json();
-            console.log("SQL query results:", sqlData);
+            // Execute SQL query
+            const baseUrl = window.location.origin;
+            const sqlRes = await fetch(`${baseUrl}/api/execute-sql`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ query: sqlQuery }),
+            }).then(r => r.json());
             
-            // 设置查询结果
-            setCustomAnalysisResult("Query executed successfully.");
-            setCustomAnalysisData(sqlData.data || []);
-            
-            // 生成自然语言回答
-            try {
-              const naturalResponse = await fetch("https://api.openai.com/v1/chat/completions", {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  "Authorization": `Bearer ${apiKey}`,
-                },
-                body: JSON.stringify({
-                  model: "gpt-3.5-turbo",
-                  messages: [
-                    {
-                      role: "system",
-                      content: `You are a helpful assistant that explains data analysis results in natural language.
-                      Convert the query results into a clear, concise answer to the user's original question.
-                      Be direct and specific in your response.`,
-                    },
-                    {
-                      role: "user",
-                      content: `Original question: ${instruction}
-                      SQL query: ${args.sqlQuery}
-                      Query results: ${JSON.stringify(sqlData.data || [])}
-                      
-                      Please provide a natural language answer to the original question based on these results.`,
-                    },
-                  ],
-                }),
-              });
+            if (!sqlRes.error) {
+              setCustomLlmQueryResults(sqlRes.data);
               
-              const naturalData = await naturalResponse.json();
-              const naturalAnswer = naturalData.choices[0].message.content;
-              setNaturalResponse(naturalAnswer);
-            } catch (naturalError) {
-              console.error("Failed to generate natural response:", naturalError);
-              setNaturalResponse("I found the data but couldn't generate a natural language response.");
+              // Generate natural language response for Custom LLM
+              const nlRes = await fetch(`${baseUrl}/api/openai-chat`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                  instruction: `Based on the following SQL query results and the Custom LLM's explanation, provide a clear and concise answer to the original question: "${instruction}"\n\nCustom LLM explanation: ${data.result}\n\nQuery results: ${JSON.stringify(sqlRes.data)}`
+                }),
+              }).then(r => r.json());
+              
+              if (!nlRes.error) {
+                setCustomLlmNaturalResponse(nlRes.result);
+              }
             }
-          } catch (sqlError) {
-            console.error("Failed to execute SQL query:", sqlError);
-            setCustomAnalysisResult(`Error executing SQL query: ${sqlError instanceof Error ? sqlError.message : 'Unknown error'}`);
-            setCustomAnalysisData(null);
           }
         }
       }
-    } catch (err: unknown) {
-      console.error("UnifiedNLI process failed:", err);
-      setResult(`Error: ${err instanceof Error ? err.message : err}`);
-      setShowComponent(false); // Hide the component on error
-    } finally {
-      setIsLoading(false);
     }
-  }
+
+    setIsProcessing(false);
+  };
 
   return (
-    <div style={{ border: "1px solid #ddd", padding: "1rem", borderRadius: "8px", marginBottom: "1rem" }}>
-      <h3>Uniswap Operations using Natural Language</h3>
-      {!isConnected && <p style={{ color: "orange" }}>Please connect your wallet.</p>}
+    <div className='flex flex-col gap-4 p-4 bg-base-200 rounded-lg'>
+      <h2 className='text-xl font-bold'>Natural Language Interface</h2>
 
-      <div style={{ marginBottom: "0.5rem" }}>
-        <label>Instruction:</label>
-        <input
-          type="text"
-          placeholder="e.g. Swap 10 Token A for Token B, Add 100 Token A and 50 Token B to the pool, Remove 50% of my liquidity, Show me the pool analytics, Analyze the swap price distribution, How many Mint events occurred this month?"
+      {/* Instruction input */}
+      <div className='form-control'>
+        <label className='label'><span className='label-text'>Instruction:</span></label>
+        <textarea
+          className='textarea textarea-bordered h-24'
+          placeholder='Enter your instruction (e.g., "Swap 0.1 ETH for USDC")'
           value={instruction}
-          onChange={(e) => setInstruction(e.target.value)}
-          style={{ marginLeft: "0.5rem", width: "300px" }}
+          onChange={e => setInstruction(e.target.value)}
         />
       </div>
 
-      <div style={{ marginBottom: "0.5rem" }}>
-        <label>OpenAI API Key:</label>
-        <input
-          type="password"
-          placeholder="Enter your OpenAI API Key"
-          value={apiKey}
-          onChange={(e) => setApiKey(e.target.value)}
-          style={{ marginLeft: "0.5rem", width: "300px" }}
-        />
-      </div>
-
-      <button 
-        onClick={handleUnifiedNLI} 
-        style={{ padding: "0.5rem 1rem", marginBottom: "1rem" }}
-        disabled={isLoading}
+      <button
+        className={`btn btn-primary ${isProcessing ? 'loading' : ''}`}
+        onClick={handleParseInstruction}
+        disabled={isProcessing}
       >
-        {isLoading ? "Processing..." : "Parse Instruction"}
+        Parse Instruction
       </button>
 
-      {result && <p style={{ marginTop: "1rem", marginBottom: "1rem" }}>{result}</p>}
+      {error && <div className='alert alert-error'><span>{error}</span></div>}
 
-      {showComponent && operationType === "contractOp" && (
-        <>
-          {amountA && !amountB && !lpTokens && (
-            <div style={{ marginTop: "1rem" }}>
-              <h4>Swap Operation</h4>
-              <Swap 
-                key={`swap-${amountA}`}
-                tokenIn={tokenA} 
-                tokenOut={tokenB} 
-                initialAmount={amountA}
-              />
-            </div>
-          )}
-
-          {amountA && amountB && !lpTokens && (
-            <div style={{ marginTop: "1rem" }}>
-              <h4>Add Liquidity Operation</h4>
-              <AddLiquidity 
-                key={`add-${amountA}-${amountB}`}
-                routerAddress={routerAddress} 
-                tokenA={tokenA} 
-                tokenB={tokenB} 
-                initialAmountA={amountA}
-                initialAmountB={amountB}
-              />
-            </div>
-          )}
-
-          {!amountA && !amountB && lpTokens && (
-            <div style={{ marginTop: "1rem" }}>
-              <h4>Remove Liquidity Operation</h4>
-              <RemoveLiquidity 
-                key={`remove-${lpTokens}`}
-                tokenA={tokenA} 
-                tokenB={tokenB} 
-                pairAddress={pairAddress} 
-                initialLpTokens={lpTokens}
-              />
-            </div>
-          )}
-        </>
-      )}
-
-      {showComponent && operationType === "dataAnalysis" && (
-        <>
-          {analysisType === "pool" && (
-            <div style={{ marginTop: "1rem" }}>
-              <h4>Pool Analytics</h4>
-              <PoolAnalytics 
-                key={`pool-analytics-${displayMode}`}
-                pairAddress={pairAddress} 
-                token0Symbol="Token A" 
-                token1Symbol="Token B" 
-              />
-            </div>
-          )}
-
-          {analysisType === "price" && (
-            <div style={{ marginTop: "1rem" }}>
-              <h4>Swap Price Distribution</h4>
-              <SwapPriceDistribution 
-                key={`swap-price-distribution-${displayMode}`}
-                pairAddress={pairAddress} 
-              />
-            </div>
-          )}
-
-          {analysisType === "custom" && (
-            <div style={{ marginTop: "1rem" }}>
-              <h4>Custom Analysis</h4>
-              {customAnalysisResult === "Processing your custom analysis query..." ? (
-                <div className="text-center py-4">Processing your query...</div>
-              ) : (
-                <div className="p-4 bg-base-200 rounded-lg">
-                  {sqlQuery && (
-                    <div className="mb-4">
-                      <h5 className="font-medium mb-2">SQL Query:</h5>
-                      <pre className="bg-base-300 p-2 rounded text-xs overflow-x-auto">{sqlQuery}</pre>
-                    </div>
-                  )}
-                  
-                  {naturalResponse ? (
-                    <div className="mb-4">
-                      <h5 className="font-medium mb-2">Answer:</h5>
-                      <p>{naturalResponse}</p>
-                    </div>
-                  ) : (
-                    <div className="mb-4">
-                      <h5 className="font-medium mb-2">Query Result:</h5>
-                      <p>{customAnalysisResult}</p>
-                    </div>
-                  )}
-                  
-                  {customAnalysisData && customAnalysisData.length > 0 ? (
-                    <>
-                      <h5 className="font-medium mb-2">Data:</h5>
-                      <div className="overflow-x-auto">
-                        <table className="table table-zebra w-full">
-                          <thead>
-                            <tr>
-                              {Object.keys(customAnalysisData[0] || {}).map(key => (
-                                <th key={key}>{key}</th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {customAnalysisData.map((row: Record<string, any>, index: number) => (
-                              <tr key={index}>
-                                {Object.values(row).map((value: any, i: number) => (
-                                  <td key={i}>{value !== null ? String(value) : 'null'}</td>
-                                ))}
-                              </tr>
+      {/* Two LLMs side by side */}
+      {(result || customLlmResult) && (
+        <div className='mt-4 flex gap-4'>
+          {result && (
+            <div className='card bg-base-100 shadow-xl flex-1'>
+              <div className='card-body'>
+                <h3 className='card-title'>OpenAI Response</h3>
+                <pre className='whitespace-pre-wrap'>{JSON.stringify(result, null, 2)}</pre>
+                {openAiQueryResults.length > 0 && (
+                  <div className='mt-4'>
+                    <h4 className='text-lg font-semibold mb-2'>Query Results</h4>
+                    <table className='min-w-full divide-y divide-gray-200'>
+                      <thead className='bg-gray-50'>
+                        <tr>
+                          {Object.keys(openAiQueryResults[0]).map(key => (
+                            <th key={key} className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                              {key}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className='bg-white divide-y divide-gray-200'>
+                        {openAiQueryResults.map((row, rowIndex) => (
+                          <tr key={rowIndex}>
+                            {Object.values(row).map((val, colIndex) => (
+                              <td key={colIndex} className='px-6 py-4 whitespace-nowrap text-sm text-gray-500'>
+                                {val != null ? String(val) : ''}
+                              </td>
                             ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="text-center py-4">No data returned from the query.</div>
-                  )}
-                </div>
-              )}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                {openAiNaturalResponse && (
+                  <div className='mt-4'>
+                    <h4 className='text-lg font-semibold mb-2'>Answer</h4>
+                    <p className='text-gray-700'>{openAiNaturalResponse}</p>
+                  </div>
+                )}
+              </div>
             </div>
           )}
-        </>
+          {customLlmResult && (
+            <div className='card bg-base-100 shadow-xl flex-1'>
+              <div className='card-body'>
+                <h3 className='card-title'>Custom LLM Response</h3>
+                <pre className='whitespace-pre-wrap'>{customLlmResult}</pre>
+                {customLlmQueryResults.length > 0 && (
+                  <div className='mt-4'>
+                    <h4 className='text-lg font-semibold mb-2'>Query Results</h4>
+                    <table className='min-w-full divide-y divide-gray-200'>
+                      <thead className='bg-gray-50'>
+                        <tr>
+                          {Object.keys(customLlmQueryResults[0]).map(key => (
+                            <th key={key} className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                              {key}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className='bg-white divide-y divide-gray-200'>
+                        {customLlmQueryResults.map((row, rowIndex) => (
+                          <tr key={rowIndex}>
+                            {Object.values(row).map((val, colIndex) => (
+                              <td key={colIndex} className='px-6 py-4 whitespace-nowrap text-sm text-gray-500'>
+                                {val != null ? String(val) : ''}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                {customLlmNaturalResponse && (
+                  <div className='mt-4'>
+                    <h4 className='text-lg font-semibold mb-2'>Answer</h4>
+                    <p className='text-gray-700'>{customLlmNaturalResponse}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       )}
+
+      {/* Contract operation & analytics components */}
+      {showSwap && <Swap tokenIn={tokenA} tokenOut={tokenB} />}
+      {showAddLiquidity && <AddLiquidity routerAddress={routerAddress} tokenA={tokenA} tokenB={tokenB} />}
+      {showRemoveLiquidity && <RemoveLiquidity tokenA={tokenA} tokenB={tokenB} pairAddress={pairAddress} />}
+      {showPoolAnalytics && <PoolAnalytics pairAddress={pairAddress} />}
+      {showSwapPriceDistribution && <SwapPriceDistribution pairAddress={pairAddress} />}
     </div>
   );
-} 
+}

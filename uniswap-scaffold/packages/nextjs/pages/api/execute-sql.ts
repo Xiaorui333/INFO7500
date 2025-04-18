@@ -14,10 +14,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ error: 'SQL query is required' });
     }
 
+    if (typeof query !== 'string' || query.trim() === '') {
+      return res.status(400).json({ error: 'Query must be a non-empty string' });
+    }
+    
     // Clean the query by removing semicolons at the end
     const cleanQuery = query.replace(/;+$/, '');
-    
     console.log('Executing SQL query:', cleanQuery);
+
+    const forbidden = /\\b(drop|delete|update|insert|truncate|alter)\\b/i;
+    if (forbidden.test(cleanQuery)) {
+      return res.status(400).json({ error: 'Only SELECT queries are allowed.' });
+    }
 
     // Execute the SQL query using the Supabase admin client
     const { data, error } = await supabaseAdmin.rpc('execute_sql', { query: cleanQuery });
