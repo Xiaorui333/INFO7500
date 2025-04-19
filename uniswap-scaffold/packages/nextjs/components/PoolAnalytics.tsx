@@ -39,9 +39,7 @@ interface Point {
   y: number;
 }
 
-function generateCurveData(r0: number, r1: number, points = 50): Point[] {
-  // x * y = k constant
-  const k = r0 * r1;
+function generateCurveData(k: number, r0: number, points = 50): Point[] {
   const data: Point[] = [];
   
   // Generate points around the current reserves
@@ -67,6 +65,15 @@ export function PoolAnalytics({ pairAddress, token0Symbol = "Token0", token1Symb
   const [chartData, setChartData] = useState<any>(null);
   const previousPointRef = useRef<Point | null>(null);
   const previousCurveRef = useRef<{ k: number } | null>(null);
+  
+  // Function to detect if the operation was a swap or liquidity change
+  const detectOperationType = (currentK: number, previousK: number | null): 'swap' | 'liquidity' => {
+    if (!previousK) return 'swap'; // First data point
+    
+    // If k value changed by more than 0.1%, consider it a liquidity operation
+    const kDiffPercentage = Math.abs(currentK - previousK) / previousK * 100;
+    return kDiffPercentage > 0.1 ? 'liquidity' : 'swap';
+  };
 
   // Function to manually refresh the data
   const handleRefresh = async () => {
@@ -86,9 +93,13 @@ export function PoolAnalytics({ pairAddress, token0Symbol = "Token0", token1Symb
     const reserve1Number = Number(reserve1);
 
     console.log(`Current reserves: ${reserve0Number}, ${reserve1Number}`);
+    const currentK = reserve0Number * reserve1Number;
+    const operationType = detectOperationType(currentK, previousCurveRef.current?.k || null);
 
-    // Generate curve data from numerical values
-    const curvePoints = generateCurveData(reserve0Number, reserve1Number);
+    // Generate curve data based on operation type
+    const curvePoints = operationType === 'swap' && previousCurveRef.current
+      ? generateCurveData(previousCurveRef.current.k, reserve0Number)
+      : generateCurveData(currentK, reserve0Number);
 
     // Create current point P
     const currentPoint = {
@@ -101,8 +112,7 @@ export function PoolAnalytics({ pairAddress, token0Symbol = "Token0", token1Symb
       ? [previousPointRef.current, currentPoint]
       : [];
 
-    const currentCurve = { k: reserve0Number * reserve1Number };
-    const previousCurve = previousCurveRef.current;
+    const currentCurve = { k: currentK };
 
     setChartData({
       datasets: [
