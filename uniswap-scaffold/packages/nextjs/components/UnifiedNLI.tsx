@@ -22,15 +22,33 @@ export function UnifiedNLI({ routerAddress, tokenA, tokenB, pairAddress }: Unifi
   const [instruction, setInstruction] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+
+  // LLM result states
   const [result, setResult] = useState<any>(null);
   const [queryResults, setQueryResults] = useState<any[]>([]);
   const [naturalResponse, setNaturalResponse] = useState<string | null>(null);
 
+  // Toggles for the Uniswap operational components
   const [showSwap, setShowSwap] = useState<boolean>(false);
   const [showAddLiquidity, setShowAddLiquidity] = useState<boolean>(false);
   const [showRemoveLiquidity, setShowRemoveLiquidity] = useState<boolean>(false);
   const [showPoolAnalytics, setShowPoolAnalytics] = useState<boolean>(false);
   const [showSwapPriceDistribution, setShowSwapPriceDistribution] = useState<boolean>(false);
+
+  // Store operation parameters from LLM
+  const [swapParams, setSwapParams] = useState<{
+    amountA?: string;
+    amountB?: string;
+  } | null>(null);
+
+  const [addLiquidityParams, setAddLiquidityParams] = useState<{
+    amountA?: string;
+    amountB?: string;
+  } | null>(null);
+
+  const [removeLiquidityParams, setRemoveLiquidityParams] = useState<{
+    lpTokens?: string;
+  } | null>(null);
 
   const { status: accountStatus } = useAccount();
   const isConnected = accountStatus === 'connected';
@@ -52,13 +70,20 @@ export function UnifiedNLI({ routerAddress, tokenA, tokenB, pairAddress }: Unifi
     setShowPoolAnalytics(false);
     setShowSwapPriceDistribution(false);
 
+    setSwapParams(null);
+    setAddLiquidityParams(null);
+    setRemoveLiquidityParams(null);
+
     try {
       // Call the selected LLM API
-      const llmRes = await fetch(selectedLLM === 'openai' ? '/api/openai-proxy' : '/api/custom-llm-proxy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ instruction }),
-      }).then(r => r.json());
+      const llmRes = await fetch(
+        selectedLLM === 'openai' ? '/api/openai-proxy' : '/api/custom-llm-proxy',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ instruction }),
+        }
+      ).then(r => r.json());
 
       console.log(`[UnifiedNLI] ${selectedLLM} response:`, llmRes);
 
@@ -67,6 +92,7 @@ export function UnifiedNLI({ routerAddress, tokenA, tokenB, pairAddress }: Unifi
         return;
       }
 
+      // Store the raw result for display
       setResult(llmRes.result);
 
       // Handle SQL query if present
@@ -122,12 +148,30 @@ export function UnifiedNLI({ routerAddress, tokenA, tokenB, pairAddress }: Unifi
         }
       }
 
-      // Handle other operations
+      // Handle contract operations
       if (selectedLLM === 'openai') {
-        if (llmRes.result?.operation) {
-          if (llmRes.result.operation.type === 'swap') setShowSwap(true);
-          if (llmRes.result.operation.type === 'addLiquidity') setShowAddLiquidity(true);
-          if (llmRes.result.operation.type === 'removeLiquidity') setShowRemoveLiquidity(true);
+        if (llmRes.operation) {
+          const operation = llmRes.operation;
+          const params = operation.params || {};
+
+          if (operation.type === 'swap') {
+            setShowSwap(true);
+            setSwapParams({
+              amountA: params.amountA,
+              amountB: params.amountB,
+            });
+          } else if (operation.type === 'addLiquidity') {
+            setShowAddLiquidity(true);
+            setAddLiquidityParams({
+              amountA: params.amountA,
+              amountB: params.amountB,
+            });
+          } else if (operation.type === 'removeLiquidity') {
+            setShowRemoveLiquidity(true);
+            setRemoveLiquidityParams({
+              lpTokens: params.lpTokens,
+            });
+          }
         }
         if (llmRes.result?.function === 'performStandardAnalysis') {
           const { analysisType } = llmRes.result.arguments;
@@ -173,7 +217,7 @@ export function UnifiedNLI({ routerAddress, tokenA, tokenB, pairAddress }: Unifi
         </label>
         <textarea
           className='textarea textarea-bordered h-24'
-          placeholder='Enter your instruction (e.g., "How many swap events occurred today?")'
+          placeholder='Enter your instruction (e.g., "Swap 0.1 ETH for USDC")'
           value={instruction}
           onChange={e => setInstruction(e.target.value)}
         />
@@ -193,45 +237,49 @@ export function UnifiedNLI({ routerAddress, tokenA, tokenB, pairAddress }: Unifi
         </div>
       )}
 
-      {/* LLM Response and Results */}
+      {/* LLM Response Card */}
       {result && (
         <div className='card bg-base-100 shadow-xl'>
           <div className='card-body'>
             <h3 className='card-title'>{selectedLLM === 'openai' ? 'OpenAI' : 'Custom LLM'} Response</h3>
-            <pre className='whitespace-pre-wrap'>{typeof result === 'string' ? result : JSON.stringify(result, null, 2)}</pre>
-            
-            {queryResults && queryResults.length > 0 && (
-              <div className='mt-4'>
+            <pre className='whitespace-pre-wrap overflow-x-auto bg-base-200 p-4 rounded-lg text-sm max-h-[400px] overflow-y-auto'>
+              {typeof result === 'string' ? result : JSON.stringify(result, null, 2)}
+            </pre>
+
+            {queryResults?.length > 0 && (
+              <div className='mt-4 overflow-x-auto'>
                 <h4 className='text-lg font-semibold mb-2'>Query Results</h4>
-                <table className='min-w-full divide-y divide-gray-200'>
-                  <thead className='bg-gray-50'>
-                    <tr>
-                      {Object.keys(queryResults[0]).map(key => (
-                        <th key={key} className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                          {key}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className='bg-white divide-y divide-gray-200'>
-                    {queryResults.map((row, rowIndex) => (
-                      <tr key={rowIndex}>
-                        {Object.values(row).map((val, colIndex) => (
-                          <td key={colIndex} className='px-6 py-4 whitespace-nowrap text-sm text-gray-500'>
-                            {val != null ? String(val) : ''}
-                          </td>
+                <div className='max-h-[400px] overflow-y-auto'>
+                  <table className='table w-full'>
+                    <thead>
+                      <tr>
+                        {Object.keys(queryResults[0]).map(key => (
+                          <th key={key} className='bg-base-200 sticky top-0'>
+                            {key}
+                          </th>
                         ))}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {queryResults.map((row, rowIndex) => (
+                        <tr key={rowIndex}>
+                          {Object.values(row).map((val, colIndex) => (
+                            <td key={colIndex} className='whitespace-normal break-words'>
+                              {val != null ? String(val) : ''}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
 
             {naturalResponse && (
               <div className='mt-4'>
                 <h4 className='text-lg font-semibold mb-2'>Answer</h4>
-                <p className='text-gray-700'>{naturalResponse}</p>
+                <p className='text-gray-700 whitespace-pre-wrap'>{naturalResponse}</p>
               </div>
             )}
           </div>
@@ -239,9 +287,30 @@ export function UnifiedNLI({ routerAddress, tokenA, tokenB, pairAddress }: Unifi
       )}
 
       {/* Contract operation & analytics components */}
-      {showSwap && <Swap tokenIn={tokenA} tokenOut={tokenB} />}
-      {showAddLiquidity && <AddLiquidity routerAddress={routerAddress} tokenA={tokenA} tokenB={tokenB} />}
-      {showRemoveLiquidity && <RemoveLiquidity tokenA={tokenA} tokenB={tokenB} pairAddress={pairAddress} />}
+      {showSwap && (
+        <Swap 
+          tokenIn={tokenA}
+          tokenOut={tokenB}
+          initialAmount={swapParams?.amountA}
+        />
+      )}
+      {showAddLiquidity && (
+        <AddLiquidity
+          routerAddress={routerAddress}
+          tokenA={tokenA}
+          tokenB={tokenB}
+          initialAmountA={addLiquidityParams?.amountA}
+          initialAmountB={addLiquidityParams?.amountB}
+        />
+      )}
+      {showRemoveLiquidity && (
+        <RemoveLiquidity
+          tokenA={tokenA}
+          tokenB={tokenB}
+          pairAddress={pairAddress}
+          initialLpTokens={removeLiquidityParams?.lpTokens}
+        />
+      )}
       {showPoolAnalytics && <PoolAnalytics pairAddress={pairAddress} />}
       {showSwapPriceDistribution && <SwapPriceDistribution pairAddress={pairAddress} />}
     </div>

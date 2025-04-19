@@ -222,84 +222,92 @@ export function TaskEvaluation({ routerAddress, tokenA, tokenB, pairAddress }: T
 
       {/* Two LLMs side by side */}
       {(result || customLlmResult) && (
-        <div className='mt-4 flex gap-4'>
+        <div className='mt-4 flex flex-col lg:flex-row gap-4'>
           {result && (
-            <div className='card bg-base-100 shadow-xl flex-1'>
+            <div className='card bg-base-100 shadow-xl w-full lg:w-1/2'>
               <div className='card-body'>
                 <h3 className='card-title'>OpenAI Response</h3>
-                <pre className='whitespace-pre-wrap'>{JSON.stringify(result, null, 2)}</pre>
+                <pre className='whitespace-pre-wrap overflow-x-auto bg-base-200 p-4 rounded-lg text-sm max-h-[400px] overflow-y-auto'>
+                  {JSON.stringify(result, null, 2)}
+                </pre>
                 {openAiQueryResults && openAiQueryResults.length > 0 && (
-                  <div className='mt-4'>
+                  <div className='mt-4 overflow-x-auto'>
                     <h4 className='text-lg font-semibold mb-2'>Query Results</h4>
-                    <table className='min-w-full divide-y divide-gray-200'>
-                      <thead className='bg-gray-50'>
-                        <tr>
-                          {Object.keys(openAiQueryResults[0]).map(key => (
-                            <th key={key} className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                              {key}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody className='bg-white divide-y divide-gray-200'>
-                        {openAiQueryResults.map((row, rowIndex) => (
-                          <tr key={rowIndex}>
-                            {Object.values(row).map((val, colIndex) => (
-                              <td key={colIndex} className='px-6 py-4 whitespace-nowrap text-sm text-gray-500'>
-                                {val != null ? String(val) : ''}
-                              </td>
+                    <div className='max-h-[400px] overflow-y-auto'>
+                      <table className='table w-full'>
+                        <thead>
+                          <tr>
+                            {Object.keys(openAiQueryResults[0]).map(key => (
+                              <th key={key} className='bg-base-200 sticky top-0'>
+                                {key}
+                              </th>
                             ))}
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {openAiQueryResults.map((row, rowIndex) => (
+                            <tr key={rowIndex}>
+                              {Object.values(row).map((val, colIndex) => (
+                                <td key={colIndex} className='whitespace-normal break-words'>
+                                  {val != null ? String(val) : ''}
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 )}
                 {openAiNaturalResponse && (
                   <div className='mt-4'>
                     <h4 className='text-lg font-semibold mb-2'>Answer</h4>
-                    <p className='text-gray-700'>{openAiNaturalResponse}</p>
+                    <p className='text-gray-700 whitespace-pre-wrap'>{openAiNaturalResponse}</p>
                   </div>
                 )}
               </div>
             </div>
           )}
           {customLlmResult && (
-            <div className='card bg-base-100 shadow-xl flex-1'>
+            <div className='card bg-base-100 shadow-xl w-full lg:w-1/2'>
               <div className='card-body'>
                 <h3 className='card-title'>Custom LLM Response</h3>
-                <pre className='whitespace-pre-wrap'>{customLlmResult}</pre>
+                <pre className='whitespace-pre-wrap overflow-x-auto bg-base-200 p-4 rounded-lg text-sm max-h-[400px] overflow-y-auto'>
+                  {customLlmResult}
+                </pre>
                 {customLlmQueryResults && customLlmQueryResults.length > 0 && (
-                  <div className='mt-4'>
+                  <div className='mt-4 overflow-x-auto'>
                     <h4 className='text-lg font-semibold mb-2'>Query Results</h4>
-                    <table className='min-w-full divide-y divide-gray-200'>
-                      <thead className='bg-gray-50'>
-                        <tr>
-                          {Object.keys(customLlmQueryResults[0]).map(key => (
-                            <th key={key} className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                              {key}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody className='bg-white divide-y divide-gray-200'>
-                        {customLlmQueryResults.map((row, rowIndex) => (
-                          <tr key={rowIndex}>
-                            {Object.values(row).map((val, colIndex) => (
-                              <td key={colIndex} className='px-6 py-4 whitespace-nowrap text-sm text-gray-500'>
-                                {val != null ? String(val) : ''}
-                              </td>
+                    <div className='max-h-[400px] overflow-y-auto'>
+                      <table className='table w-full'>
+                        <thead>
+                          <tr>
+                            {Object.keys(customLlmQueryResults[0]).map(key => (
+                              <th key={key} className='bg-base-200 sticky top-0'>
+                                {key}
+                              </th>
                             ))}
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {customLlmQueryResults.map((row, rowIndex) => (
+                            <tr key={rowIndex}>
+                              {Object.values(row).map((val, colIndex) => (
+                                <td key={colIndex} className='whitespace-normal break-words'>
+                                  {val != null ? String(val) : ''}
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 )}
                 {customLlmNaturalResponse && (
                   <div className='mt-4'>
                     <h4 className='text-lg font-semibold mb-2'>Answer</h4>
-                    <p className='text-gray-700'>{customLlmNaturalResponse}</p>
+                    <p className='text-gray-700 whitespace-pre-wrap'>{customLlmNaturalResponse}</p>
                   </div>
                 )}
               </div>
