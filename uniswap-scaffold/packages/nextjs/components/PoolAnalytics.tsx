@@ -57,23 +57,35 @@ function generateCurveData(r0: number, r1: number, points = 50): Point[] {
 }
 
 export function PoolAnalytics({ pairAddress, token0Symbol = "Token0", token1Symbol = "Token1" }: PoolAnalyticsProps) {
-  const { data: reservesData } = useReadContract({
+  const [refreshKey, setRefreshKey] = useState(0);
+  const { data: reservesData, refetch } = useReadContract({
     address: pairAddress,
     abi: pairAbi.abi,
     functionName: "getReserves",
-  }) as { data: [bigint, bigint, bigint] | undefined };
+  }) as { data: [bigint, bigint, bigint] | undefined, refetch: () => void };
 
   const [chartData, setChartData] = useState<any>(null);
   const previousPointRef = useRef<Point | null>(null);
   const previousCurveRef = useRef<{ k: number } | null>(null);
 
+  // Function to manually refresh the data
+  const handleRefresh = async () => {
+    console.log("Refreshing pool data...");
+    await refetch();
+    setRefreshKey(prev => prev + 1);
+  };
+
   useEffect(() => {
     if (!reservesData) return;
+
+    console.log("Reserves data updated:", reservesData);
 
     // Destructure the returned tuple: [reserve0, reserve1, blockTimestampLast]
     const [reserve0, reserve1] = reservesData;
     const reserve0Number = Number(reserve0);
     const reserve1Number = Number(reserve1);
+
+    console.log(`Current reserves: ${reserve0Number}, ${reserve1Number}`);
 
     // Generate curve data from numerical values
     const curvePoints = generateCurveData(reserve0Number, reserve1Number);
@@ -129,7 +141,7 @@ export function PoolAnalytics({ pairAddress, token0Symbol = "Token0", token1Symb
     // Update previous point and curve for next render
     previousPointRef.current = currentPoint;
     previousCurveRef.current = currentCurve;
-  }, [reservesData]);
+  }, [reservesData, refreshKey]);
 
   if (!chartData) {
     return <div className="text-center py-4">Loading reserve curve…</div>;
@@ -153,9 +165,18 @@ export function PoolAnalytics({ pairAddress, token0Symbol = "Token0", token1Symb
       {/* Equation and Reserves Section */}
       <div className="flex flex-col gap-3 pb-3">
         <div className="flex flex-col">
-          <div className="flex items-center mb-2">
-            <span className="text-sm font-medium mr-2">Constant Product Equation:</span>
-            <span className="text-sm font-normal">x * y = k</span>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center">
+              <span className="text-sm font-medium mr-2">Constant Product Equation:</span>
+              <span className="text-sm font-normal">x * y = k</span>
+            </div>
+            <button 
+              className="btn btn-sm btn-outline" 
+              onClick={handleRefresh}
+              title="Refresh pool data"
+            >
+              Refresh
+            </button>
           </div>
           
           {currentPoint && (
