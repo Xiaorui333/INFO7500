@@ -1,14 +1,13 @@
-"use client";
-import React from "react";
-import { UnifiedNLI } from "~~/components/UnifiedNLI";
+import type { NextPage } from "next";
+import { TaskEvaluation } from "~~/components/TaskEvaluation";
 
-export default function MainInteractionPage() {
+const TaskEvaluationPage: NextPage = () => {
   return (
     <div className="flex flex-col items-center">
       <div className="w-full max-w-4xl">
-        <h1 className="text-4xl font-bold mb-8">Natural Language Interface</h1>
+        <h1 className="text-4xl font-bold mb-8">Task Evaluation</h1>
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-          <UnifiedNLI
+          <TaskEvaluation
             routerAddress={process.env.NEXT_PUBLIC_UNISWAPV2_ROUTER02_ADDRESS as `0x${string}`}
             tokenA={process.env.NEXT_PUBLIC_TOKENA_ADDRESS as `0x${string}`}
             tokenB={process.env.NEXT_PUBLIC_TOKENB_ADDRESS as `0x${string}`}
@@ -18,4 +17,6 @@ export default function MainInteractionPage() {
       </div>
     </div>
   );
-} 
+};
+
+export default TaskEvaluationPage; 

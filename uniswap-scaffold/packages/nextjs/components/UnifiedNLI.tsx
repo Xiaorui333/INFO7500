@@ -15,24 +15,22 @@ interface UnifiedNLIProps {
   pairAddress: `0x${string}`;
 }
 
+type LLMType = 'openai' | 'custom';
+
 export function UnifiedNLI({ routerAddress, tokenA, tokenB, pairAddress }: UnifiedNLIProps) {
+  const [selectedLLM, setSelectedLLM] = useState<LLMType>('openai');
   const [instruction, setInstruction] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<any>(null);
-  const [openAiQueryResults, setOpenAiQueryResults] = useState<any[]>([]);
-  const [openAiNaturalResponse, setOpenAiNaturalResponse] = useState<string | null>(null);
-  
-  const [customLlmResult, setCustomLlmResult] = useState<string | null>(null);
-  const [customLlmQueryResults, setCustomLlmQueryResults] = useState<any[]>([]);
-  const [customLlmNaturalResponse, setCustomLlmNaturalResponse] = useState<string | null>(null);
+  const [queryResults, setQueryResults] = useState<any[]>([]);
+  const [naturalResponse, setNaturalResponse] = useState<string | null>(null);
 
   const [showSwap, setShowSwap] = useState<boolean>(false);
   const [showAddLiquidity, setShowAddLiquidity] = useState<boolean>(false);
   const [showRemoveLiquidity, setShowRemoveLiquidity] = useState<boolean>(false);
   const [showPoolAnalytics, setShowPoolAnalytics] = useState<boolean>(false);
   const [showSwapPriceDistribution, setShowSwapPriceDistribution] = useState<boolean>(false);
-  
 
   const { status: accountStatus } = useAccount();
   const isConnected = accountStatus === 'connected';
@@ -45,147 +43,137 @@ export function UnifiedNLI({ routerAddress, tokenA, tokenB, pairAddress }: Unifi
 
     setIsProcessing(true);
     setError(null);
-    // Reset OpenAI states
     setResult(null);
-    setOpenAiQueryResults([]);
-    setOpenAiNaturalResponse(null);
-    // Reset Custom LLM states
-    setCustomLlmResult(null);
-    setCustomLlmQueryResults([]);
-    setCustomLlmNaturalResponse(null);
-    // Reset UI states
+    setQueryResults([]);
+    setNaturalResponse(null);
     setShowSwap(false);
     setShowAddLiquidity(false);
     setShowRemoveLiquidity(false);
     setShowPoolAnalytics(false);
     setShowSwapPriceDistribution(false);
 
-    const [openaiRes, customRes] = await Promise.allSettled([
-      fetch('/api/openai-proxy', {
+    try {
+      // Call the selected LLM API
+      const llmRes = await fetch(selectedLLM === 'openai' ? '/api/openai-proxy' : '/api/custom-llm-proxy', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ instruction }),
-      }).then(r => r.json()),
-      fetch('/api/custom-llm-proxy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ instruction }),
-      }).then(r => r.json()),
-    ]);
-    console.log('[UnifiedNLI] openaiRes:', openaiRes);
-    console.log('[UnifiedNLI] customRes:', customRes);
+      }).then(r => r.json());
 
-    // OpenAI result processing
-    if (openaiRes.status === 'fulfilled') {
-      const data = openaiRes.value;
-      if (data.error) {
-        setError(data.error);
+      console.log(`[UnifiedNLI] ${selectedLLM} response:`, llmRes);
+
+      if (llmRes.error) {
+        setError(llmRes.error);
+        return;
+      }
+
+      setResult(llmRes.result);
+
+      // Handle SQL query if present
+      let sqlQuery = null;
+      if (selectedLLM === 'openai') {
+        if (llmRes.result?.function === 'customDataAnalysis') {
+          sqlQuery = llmRes.result.arguments.sqlQuery;
+        }
       } else {
-        setResult(data.result);
-        if (data.result?.function === 'customDataAnalysis') {
-          const sqlQuery = data.result.arguments.sqlQuery;
-          console.log('[UnifiedNLI] Executing OpenAI SQL query:', sqlQuery);
-          
-          // Execute SQL query
-          const baseUrl = window.location.origin;
-          const sqlRes = await fetch(`${baseUrl}/api/execute-sql`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ query: sqlQuery }),
-          }).then(r => r.json());
-          
-          if (sqlRes.error) {
-            setError(sqlRes.error);
-          } else {
-            setOpenAiQueryResults(sqlRes.data);
-            
-            // Generate natural language response for OpenAI
-            const nlRes = await fetch(`${baseUrl}/api/openai-chat`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ 
-                instruction: `Based on the following SQL query results, provide a clear and concise answer to the original question: "${instruction}"\n\nQuery results: ${JSON.stringify(sqlRes.data)}`
-              }),
-            }).then(r => r.json());
-            
-            if (nlRes.error) {
-              setError(nlRes.error);
-            } else {
-              setOpenAiNaturalResponse(nlRes.result);
+        // Try to parse Custom LLM response
+        try {
+          const parsedResult = typeof llmRes.result === 'string' ? JSON.parse(llmRes.result) : llmRes.result;
+          if (parsedResult.function === 'customDataAnalysis' && parsedResult.arguments?.sqlQuery) {
+            sqlQuery = parsedResult.arguments.sqlQuery;
+          }
+        } catch (e) {
+          if (typeof llmRes.result === 'string') {
+            const sqlMatch = llmRes.result.match(/```sql\n([\s\S]*?)\n```/);
+            if (sqlMatch) {
+              sqlQuery = sqlMatch[1].trim();
             }
           }
         }
-        // Handle other operations...
-        if (data.operation) {
-          if (data.operation.type === 'swap') setShowSwap(true);
-          if (data.operation.type === 'addLiquidity') setShowAddLiquidity(true);
-          if (data.operation.type === 'removeLiquidity') setShowRemoveLiquidity(true);
+      }
+
+      // Execute SQL query if found
+      if (sqlQuery) {
+        console.log(`[UnifiedNLI] Executing ${selectedLLM} SQL query:`, sqlQuery);
+        const baseUrl = window.location.origin;
+        const sqlRes = await fetch(`${baseUrl}/api/execute-sql`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: sqlQuery }),
+        }).then(r => r.json());
+
+        if (sqlRes.error) {
+          setError(sqlRes.error);
+        } else {
+          setQueryResults(sqlRes.data);
+
+          // Generate natural language response
+          const nlRes = await fetch(`${baseUrl}/api/openai-chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              instruction: `Based on the following SQL query results${selectedLLM === 'custom' ? " and the Custom LLM's explanation" : ""}, provide a clear and concise answer to the original question: "${instruction}"\n\n${selectedLLM === 'custom' ? `Custom LLM explanation: ${llmRes.result}\n\n` : ""}Query results: ${JSON.stringify(sqlRes.data)}`
+            }),
+          }).then(r => r.json());
+
+          if (!nlRes.error) {
+            setNaturalResponse(nlRes.result);
+          }
         }
-        if (data.result?.function === 'performStandardAnalysis') {
-          const { analysisType } = data.result.arguments;
+      }
+
+      // Handle other operations
+      if (selectedLLM === 'openai') {
+        if (llmRes.result?.operation) {
+          if (llmRes.result.operation.type === 'swap') setShowSwap(true);
+          if (llmRes.result.operation.type === 'addLiquidity') setShowAddLiquidity(true);
+          if (llmRes.result.operation.type === 'removeLiquidity') setShowRemoveLiquidity(true);
+        }
+        if (llmRes.result?.function === 'performStandardAnalysis') {
+          const { analysisType } = llmRes.result.arguments;
           if (analysisType === 'pool') setShowPoolAnalytics(true);
           if (analysisType === 'price') setShowSwapPriceDistribution(true);
         }
       }
+    } catch (error) {
+      console.error('[UnifiedNLI] Error:', error);
+      setError('Failed to process instruction');
+    } finally {
+      setIsProcessing(false);
     }
-
-    // Custom LLM result processing
-    if (customRes.status === 'fulfilled') {
-      const data = customRes.value;
-      if (data.error) {
-        setError(data.error);
-      } else {
-        setCustomLlmResult(data.result);
-        
-        // Extract SQL query from Custom LLM response
-        if (data.result && typeof data.result === 'string') {
-          const sqlMatch = data.result.match(/```sql\n([\s\S]*?)\n```/);
-          if (sqlMatch) {
-            const sqlQuery = sqlMatch[1].trim();
-            console.log('[UnifiedNLI] Executing Custom LLM SQL query:', sqlQuery);
-            
-            // Execute SQL query
-            const baseUrl = window.location.origin;
-            const sqlRes = await fetch(`${baseUrl}/api/execute-sql`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ query: sqlQuery }),
-            }).then(r => r.json());
-            
-            if (!sqlRes.error) {
-              setCustomLlmQueryResults(sqlRes.data);
-              
-              // Generate natural language response for Custom LLM
-              const nlRes = await fetch(`${baseUrl}/api/openai-chat`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                  instruction: `Based on the following SQL query results and the Custom LLM's explanation, provide a clear and concise answer to the original question: "${instruction}"\n\nCustom LLM explanation: ${data.result}\n\nQuery results: ${JSON.stringify(sqlRes.data)}`
-                }),
-              }).then(r => r.json());
-              
-              if (!nlRes.error) {
-                setCustomLlmNaturalResponse(nlRes.result);
-              }
-            }
-          }
-        }
-      }
-    }
-
-    setIsProcessing(false);
   };
 
   return (
-    <div className='flex flex-col gap-4 p-4 bg-base-200 rounded-lg'>
-      <h2 className='text-xl font-bold'>Natural Language Interface</h2>
+    <div className='flex flex-col gap-4'>
+      {/* LLM Selection */}
+      <div className='form-control'>
+        <label className='label'>
+          <span className='label-text'>Please choose your preferred LLM:</span>
+        </label>
+        <div className='flex gap-4'>
+          <button
+            className={`btn flex-1 ${selectedLLM === 'openai' ? 'btn-primary' : 'btn-outline'}`}
+            onClick={() => setSelectedLLM('openai')}
+          >
+            Use OpenAI
+          </button>
+          <button
+            className={`btn flex-1 ${selectedLLM === 'custom' ? 'btn-primary' : 'btn-outline'}`}
+            onClick={() => setSelectedLLM('custom')}
+          >
+            Use Custom LLM
+          </button>
+        </div>
+      </div>
 
       {/* Instruction input */}
       <div className='form-control'>
-        <label className='label'><span className='label-text'>Instruction:</span></label>
+        <label className='label'>
+          <span className='label-text'>Instruction:</span>
+        </label>
         <textarea
           className='textarea textarea-bordered h-24'
-          placeholder='Enter your instruction (e.g., "Swap 0.1 ETH for USDC")'
+          placeholder='Enter your instruction (e.g., "How many swap events occurred today?")'
           value={instruction}
           onChange={e => setInstruction(e.target.value)}
         />
@@ -196,96 +184,57 @@ export function UnifiedNLI({ routerAddress, tokenA, tokenB, pairAddress }: Unifi
         onClick={handleParseInstruction}
         disabled={isProcessing}
       >
-        Parse Instruction
+        Process Instruction
       </button>
 
-      {error && <div className='alert alert-error'><span>{error}</span></div>}
+      {error && (
+        <div className='alert alert-error'>
+          <span>{error}</span>
+        </div>
+      )}
 
-      {/* Two LLMs side by side */}
-      {(result || customLlmResult) && (
-        <div className='mt-4 flex gap-4'>
-          {result && (
-            <div className='card bg-base-100 shadow-xl flex-1'>
-              <div className='card-body'>
-                <h3 className='card-title'>OpenAI Response</h3>
-                <pre className='whitespace-pre-wrap'>{JSON.stringify(result, null, 2)}</pre>
-                {openAiQueryResults.length > 0 && (
-                  <div className='mt-4'>
-                    <h4 className='text-lg font-semibold mb-2'>Query Results</h4>
-                    <table className='min-w-full divide-y divide-gray-200'>
-                      <thead className='bg-gray-50'>
-                        <tr>
-                          {Object.keys(openAiQueryResults[0]).map(key => (
-                            <th key={key} className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                              {key}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody className='bg-white divide-y divide-gray-200'>
-                        {openAiQueryResults.map((row, rowIndex) => (
-                          <tr key={rowIndex}>
-                            {Object.values(row).map((val, colIndex) => (
-                              <td key={colIndex} className='px-6 py-4 whitespace-nowrap text-sm text-gray-500'>
-                                {val != null ? String(val) : ''}
-                              </td>
-                            ))}
-                          </tr>
+      {/* LLM Response and Results */}
+      {result && (
+        <div className='card bg-base-100 shadow-xl'>
+          <div className='card-body'>
+            <h3 className='card-title'>{selectedLLM === 'openai' ? 'OpenAI' : 'Custom LLM'} Response</h3>
+            <pre className='whitespace-pre-wrap'>{typeof result === 'string' ? result : JSON.stringify(result, null, 2)}</pre>
+            
+            {queryResults && queryResults.length > 0 && (
+              <div className='mt-4'>
+                <h4 className='text-lg font-semibold mb-2'>Query Results</h4>
+                <table className='min-w-full divide-y divide-gray-200'>
+                  <thead className='bg-gray-50'>
+                    <tr>
+                      {Object.keys(queryResults[0]).map(key => (
+                        <th key={key} className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                          {key}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className='bg-white divide-y divide-gray-200'>
+                    {queryResults.map((row, rowIndex) => (
+                      <tr key={rowIndex}>
+                        {Object.values(row).map((val, colIndex) => (
+                          <td key={colIndex} className='px-6 py-4 whitespace-nowrap text-sm text-gray-500'>
+                            {val != null ? String(val) : ''}
+                          </td>
                         ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-                {openAiNaturalResponse && (
-                  <div className='mt-4'>
-                    <h4 className='text-lg font-semibold mb-2'>Answer</h4>
-                    <p className='text-gray-700'>{openAiNaturalResponse}</p>
-                  </div>
-                )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            </div>
-          )}
-          {customLlmResult && (
-            <div className='card bg-base-100 shadow-xl flex-1'>
-              <div className='card-body'>
-                <h3 className='card-title'>Custom LLM Response</h3>
-                <pre className='whitespace-pre-wrap'>{customLlmResult}</pre>
-                {customLlmQueryResults.length > 0 && (
-                  <div className='mt-4'>
-                    <h4 className='text-lg font-semibold mb-2'>Query Results</h4>
-                    <table className='min-w-full divide-y divide-gray-200'>
-                      <thead className='bg-gray-50'>
-                        <tr>
-                          {Object.keys(customLlmQueryResults[0]).map(key => (
-                            <th key={key} className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                              {key}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody className='bg-white divide-y divide-gray-200'>
-                        {customLlmQueryResults.map((row, rowIndex) => (
-                          <tr key={rowIndex}>
-                            {Object.values(row).map((val, colIndex) => (
-                              <td key={colIndex} className='px-6 py-4 whitespace-nowrap text-sm text-gray-500'>
-                                {val != null ? String(val) : ''}
-                              </td>
-                            ))}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-                {customLlmNaturalResponse && (
-                  <div className='mt-4'>
-                    <h4 className='text-lg font-semibold mb-2'>Answer</h4>
-                    <p className='text-gray-700'>{customLlmNaturalResponse}</p>
-                  </div>
-                )}
+            )}
+
+            {naturalResponse && (
+              <div className='mt-4'>
+                <h4 className='text-lg font-semibold mb-2'>Answer</h4>
+                <p className='text-gray-700'>{naturalResponse}</p>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       )}
 
